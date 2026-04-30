@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 
@@ -390,6 +390,7 @@ export default function Results({
   const [activeIdx, setActiveIdx] = useState(0)
   const [saved,     setSaved]     = useState(new Set()) // saved result indices
   const [saving,    setSaving]    = useState(false)
+  const compareRef = useRef(null)   // anchor for the Compare-button scroll target
 
   const total   = selectedFabrics.length
   const ready   = results.length
@@ -510,9 +511,14 @@ export default function Results({
           {/* Compact progress bar while still generating */}
           {generating && <GenBar ready={ready} total={total} />}
 
-          {/* Main image viewer */}
+          {/* Main image viewer — scales with viewport so the compare grid stays visible on mobile */}
           <div
-            style={{ height: 280, position:'relative', background:'var(--ink)', flexShrink:0 }}
+            style={{
+              height: 'min(38vh, 280px)',
+              position:'relative',
+              background:'var(--ink)',
+              flexShrink:0,
+            }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
@@ -630,9 +636,9 @@ export default function Results({
               Share
             </button>
 
-            {/* Compare (scroll down hint) */}
+            {/* Compare — scrolls the compare grid into view (uses a ref, not a brittle selector) */}
             <button
-              onClick={() => document.querySelector('.scroll')?.scrollTo({ top: 400, behavior: 'smooth' })}
+              onClick={() => compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               style={{
                 flex:1, padding:'9px 4px', borderRadius:'var(--r-sm)',
                 border: '1px solid var(--accent)',
@@ -651,10 +657,11 @@ export default function Results({
           <div className="scroll" style={{ flex:1, paddingBottom:'calc(var(--nav-height) + 16px)' }}>
 
             {/* Compare grid — always shown once there's at least 1 result */}
-            <div style={{
+            <div ref={compareRef} style={{
               fontSize:'0.6rem', fontWeight:700, letterSpacing:'0.14em',
               textTransform:'uppercase', color:'var(--text-3)',
-              padding:'14px 20px 8px',
+              padding:'10px 20px 8px',
+              scrollMarginTop: 8,
             }}>
               Compare options
             </div>
