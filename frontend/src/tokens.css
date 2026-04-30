@@ -1,0 +1,146 @@
+/* ── Veelo · Atelier Design Tokens ────────────────────────────────────────── */
+
+:root {
+  /* Surfaces */
+  --bg:          #faf6f0;
+  --surface:     #ffffff;
+  --surface-2:   #f5f0e8;
+  --surface-3:   #ede8de;
+
+  /* Borders */
+  --border:      #e8e0d4;
+  --border-2:    #ddd5c8;
+
+  /* Accent — terracotta */
+  --accent:      #c07050;
+  --accent-2:    #a05838;
+  --accent-dim:  rgba(192, 112, 80, 0.10);
+  --accent-glow: rgba(192, 112, 80, 0.20);
+
+  /* Ink / text */
+  --ink:         #1a1610;
+  --text-2:      #7a6e62;
+  --text-3:      #b0a090;
+  --text-4:      #cfc4b4;
+
+  /* Semantic */
+  --success:     #5a8a60;
+  --warning:     #d4a030;
+  --error:       #c04040;
+
+  /* Typography */
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body:    'DM Sans', system-ui, -apple-system, sans-serif;
+
+  /* Radius */
+  --r-xs:  6px;
+  --r-sm:  10px;
+  --r-md:  16px;
+  --r-lg:  22px;
+  --r-xl:  30px;
+  --r-full: 9999px;
+
+  /* Spacing */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+
+  /* Nav */
+  --nav-height:    72px;
+  --status-height: 44px;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 3px rgba(26,22,16,.06), 0 1px 2px rgba(26,22,16,.04);
+  --shadow-md:  0 4px 16px rgba(26,22,16,.08), 0 1px 3px rgba(26,22,16,.05);
+  --shadow-lg:  0 12px 40px rgba(26,22,16,.12), 0 4px 8px rgba(26,22,16,.06);
+
+  /* Transitions */
+  --ease:       cubic-bezier(0.32, 0, 0.08, 1);
+  --ease-out:   cubic-bezier(0, 0, 0.2, 1);
+  --duration:   200ms;
+}
+
+/* ── Global reset ──────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, select, textarea {
+  font-family: var(--font-body);
+  font-size: inherit;
+}
+
+img { display: block; max-width: 100%; }
+
+/* ── Utility classes ───────────────────────────────────────────────────────── */
+
+/* Scrollable area that hides scrollbar */
+.scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll::-webkit-scrollbar { display: none; }
+.scroll { scrollbar-width: none; }
+
+.scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-x::-webkit-scrollbar { display: none; }
+.scroll-x { scrollbar-width: none; }
+
+/* Typography */
+.display {
+  font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
+.display-italic {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 300;
+}
+.overline {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+}
