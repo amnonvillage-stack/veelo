@@ -212,10 +212,10 @@ export default function Configure({
         ))}
       </div>
 
-      {/* Canvas */}
+      {/* Canvas — guaranteed minimum height so it stays usable on small screens */}
       <div style={{
-        flex: 1,
-        minHeight: 0,
+        flex: '1 1 0',
+        minHeight: '42vh',
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
@@ -261,11 +261,14 @@ export default function Configure({
         )}
       </div>
 
-      {/* Bottom sheet */}
-      <div style={{
+      {/* Bottom sheet — capped + internally scrollable so it never crushes the canvas */}
+      <div className="scroll" style={{
+        flex: '0 1 auto',
+        maxHeight: '55vh',
         background: 'var(--bg)',
         borderTop: '1px solid var(--border)',
         paddingBottom: 'calc(var(--nav-height) + 4px)',
+        overflowY: 'auto',
       }}>
         <div style={{ width:36, height:4, borderRadius:2, background:'var(--border)', margin:'10px auto 14px' }} />
 

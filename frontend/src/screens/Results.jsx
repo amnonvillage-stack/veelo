@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 
@@ -387,9 +387,11 @@ export default function Results({
   error, onBack, onNewRoom,
 }) {
   // activeIdx: -1 = source image, 0..n-1 = generated results
-  const [activeIdx, setActiveIdx] = useState(0)
-  const [saved,     setSaved]     = useState(new Set()) // saved result indices
-  const [saving,    setSaving]    = useState(false)
+  const [activeIdx,    setActiveIdx]    = useState(0)
+  const [saved,        setSaved]        = useState(new Set()) // saved result indices
+  const [saving,       setSaving]       = useState(false)
+  const [compareMode,  setCompareMode]  = useState(false)     // dedicated comparison view
+  const compareRef = useRef(null)   // (kept for potential future scroll anchor)
 
   const total   = selectedFabrics.length
   const ready   = results.length
@@ -446,23 +448,65 @@ export default function Results({
     <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'var(--bg)' }}>
       <style>{CSS_ANIM}</style>
 
-      <TopBar
-        title="Results"
-        onBack={onBack}
-        right={
-          analysing
-            ? <span style={{ fontSize:'0.7rem', color:'var(--accent)' }}>Analysing…</span>
-            : promptPreview
-              ? <span style={{ fontSize:'0.7rem', color:'var(--accent)', fontWeight:700 }}>⏸ Paused</span>
-              : generating
-                ? <span style={{ fontSize:'0.7rem', color:'var(--accent)' }}>
-                    {ready} / {total} ready…
-                  </span>
-                : <span style={{ fontSize:'0.7rem', color:'var(--text-3)' }}>
-                    {ready} of {total} ready
-                  </span>
-        }
-      />
+      {compareMode ? (
+        /* Slim header for compare mode — left side shows the *current peek* so the
+           user always knows what "Done" will commit. */
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between',
+          gap: 12,
+          padding:'10px 18px',
+          borderBottom:'1px solid var(--border)',
+          flexShrink: 0,
+        }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{
+              fontSize:'0.54rem', fontWeight:700, letterSpacing:'0.14em',
+              textTransform:'uppercase', color:'var(--text-3)', marginBottom: 1,
+            }}>
+              {isSource ? 'Compare · before' : 'Compare · peek'}
+            </div>
+            <div
+              style={{
+                fontFamily:'var(--font-display)',
+                fontSize:'1rem', fontWeight:500, color:'var(--ink)',
+                lineHeight:1.1,
+                whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+              }}
+            >
+              {isSource ? 'Original room' : activeResult?.fabric.name}
+            </div>
+          </div>
+          <button
+            onClick={() => setCompareMode(false)}
+            style={{
+              padding:'8px 18px', borderRadius:'var(--r-full)',
+              background:'var(--accent)', color:'#fff',
+              fontSize:'0.7rem', fontWeight:700, letterSpacing:'0.06em',
+              border:'none', cursor:'pointer', flexShrink: 0,
+            }}
+          >
+            Use this
+          </button>
+        </div>
+      ) : (
+        <TopBar
+          title="Results"
+          onBack={onBack}
+          right={
+            analysing
+              ? <span style={{ fontSize:'0.7rem', color:'var(--accent)' }}>Analysing…</span>
+              : promptPreview
+                ? <span style={{ fontSize:'0.7rem', color:'var(--accent)', fontWeight:700 }}>⏸ Paused</span>
+                : generating
+                  ? <span style={{ fontSize:'0.7rem', color:'var(--accent)' }}>
+                      {ready} / {total} ready…
+                    </span>
+                  : <span style={{ fontSize:'0.7rem', color:'var(--text-3)' }}>
+                      {ready} of {total} ready
+                    </span>
+          }
+        />
+      )}
 
       {/* ── Loading: no results yet ── */}
       {loading && !error && (
@@ -508,11 +552,18 @@ export default function Results({
       {ready > 0 && (
         <>
           {/* Compact progress bar while still generating */}
-          {generating && <GenBar ready={ready} total={total} />}
+          {!compareMode && generating && <GenBar ready={ready} total={total} />}
 
-          {/* Main image viewer */}
+          {/* Main image viewer — shrinks in compare mode so the grid gets more room,
+              but stays visible so users have a real preview to peek at before committing */}
           <div
-            style={{ height: 280, position:'relative', background:'var(--ink)', flexShrink:0 }}
+            style={{
+              height: compareMode ? 'min(30vh, 220px)' : 'min(38vh, 280px)',
+              position:'relative',
+              background:'var(--ink)',
+              flexShrink:0,
+              transition: 'height var(--duration) var(--ease)',
+            }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
@@ -522,7 +573,8 @@ export default function Results({
               style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
             />
 
-            {/* Label overlay */}
+            {/* Label overlay — hidden in compare mode (the slim header already shows the name) */}
+            {!compareMode && (
             <div style={{
               position:'absolute', top:12, left:12,
               background:'rgba(250,246,240,.92)', backdropFilter:'blur(12px)',
@@ -552,6 +604,7 @@ export default function Results({
                 </>
               )}
             </div>
+            )}
 
             {/* Swipe dots — source dot first, then one per result */}
             <div style={{
@@ -579,7 +632,8 @@ export default function Results({
             </div>
           </div>
 
-          {/* Action row */}
+          {/* Action row — hidden in compare mode */}
+          {!compareMode && (
           <div style={{
             display:'flex', gap:8, padding:'10px 18px',
             borderBottom:'1px solid var(--border)', flexShrink:0,
@@ -630,9 +684,9 @@ export default function Results({
               Share
             </button>
 
-            {/* Compare (scroll down hint) */}
+            {/* Compare — enters full-screen compare mode (chrome hides, grid takes the screen) */}
             <button
-              onClick={() => document.querySelector('.scroll')?.scrollTo({ top: 400, behavior: 'smooth' })}
+              onClick={() => setCompareMode(true)}
               style={{
                 flex:1, padding:'9px 4px', borderRadius:'var(--r-sm)',
                 border: '1px solid var(--accent)',
@@ -646,20 +700,34 @@ export default function Results({
               Compare
             </button>
           </div>
+          )}
 
-          {/* Scrollable lower section */}
-          <div className="scroll" style={{ flex:1, paddingBottom:'calc(var(--nav-height) + 16px)' }}>
+          {/* Scrollable lower section — no nav padding when nav is hidden in compare mode */}
+          <div
+            className="scroll"
+            style={{
+              flex:1,
+              paddingBottom: compareMode ? 16 : 'calc(var(--nav-height) + 16px)',
+              paddingTop: compareMode ? 12 : 0,
+            }}
+          >
 
-            {/* Compare grid — always shown once there's at least 1 result */}
-            <div style={{
-              fontSize:'0.6rem', fontWeight:700, letterSpacing:'0.14em',
-              textTransform:'uppercase', color:'var(--text-3)',
-              padding:'14px 20px 8px',
-            }}>
-              Compare options
-            </div>
+            {/* Compare grid — always shown once there's at least 1 result.
+                In compare mode the slim header above already says "Compare N options",
+                so we skip the inner uppercase label to save vertical space. */}
+            {!compareMode && (
+              <div ref={compareRef} style={{
+                fontSize:'0.6rem', fontWeight:700, letterSpacing:'0.14em',
+                textTransform:'uppercase', color:'var(--text-3)',
+                padding:'10px 20px 8px',
+                scrollMarginTop: 8,
+              }}>
+                Compare options
+              </div>
+            )}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, padding:'0 20px' }}>
-              {/* Source always first */}
+              {/* Source always first — tap = update active selection (peek live);
+                  in compare mode the user commits via the "Use this" button in the slim header. */}
               <SourceThumbnail
                 roomUrl={roomUrl}
                 selected={activeIdx === -1}
@@ -676,8 +744,8 @@ export default function Results({
               ))}
             </div>
 
-            {/* Quote strip — only shown when a generated result is active */}
-            {fabricMeters && activeResult && (
+            {/* Quote strip — hidden in compare mode (focus is on choosing) */}
+            {!compareMode && fabricMeters && activeResult && (
               <div style={{
                 margin:'14px 20px 0',
                 background:'var(--accent-dim)',
@@ -705,23 +773,26 @@ export default function Results({
               </div>
             )}
 
-            {/* New room */}
-            <div style={{ padding:'14px 20px 0' }}>
-              <button onClick={onNewRoom} style={{
-                width:'100%', padding:'12px', borderRadius:'var(--r-md)',
-                background:'none', border:'1px solid var(--border)',
-                color:'var(--text-2)', fontSize:'0.78rem', fontWeight:500,
-                letterSpacing:'0.04em', cursor:'pointer',
-              }}>
-                + Start new room
-              </button>
-            </div>
+            {/* New room — hidden in compare mode */}
+            {!compareMode && (
+              <div style={{ padding:'14px 20px 0' }}>
+                <button onClick={onNewRoom} style={{
+                  width:'100%', padding:'12px', borderRadius:'var(--r-md)',
+                  background:'none', border:'1px solid var(--border)',
+                  color:'var(--text-2)', fontSize:'0.78rem', fontWeight:500,
+                  letterSpacing:'0.04em', cursor:'pointer',
+                }}>
+                  + Start new room
+                </button>
+              </div>
+            )}
 
           </div>
         </>
       )}
 
-      <BottomNav activeIcon="✨" activeLabel="Results" />
+      {/* BottomNav hidden in compare mode — full grid space wins */}
+      {!compareMode && <BottomNav activeIcon="✨" activeLabel="Results" />}
     </div>
   )
 }
