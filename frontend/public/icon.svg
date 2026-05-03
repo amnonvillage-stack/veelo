@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Veelo monogram — terracotta on cream, "V" formed by two curtain folds -->
+  <rect width="512" height="512" rx="112" fill="#faf6f0"/>
+
+  <!-- Soft curtain pleats forming a stylized V -->
+  <g fill="none" stroke="#c07050" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Left fold -->
+    <path d="M 130 120 C 150 240, 200 360, 256 412"/>
+    <!-- Right fold -->
+    <path d="M 382 120 C 362 240, 312 360, 256 412"/>
+    <!-- Crossbar (curtain rod) -->
+    <line x1="120" y1="120" x2="392" y2="120" stroke-width="22"/>
+  </g>
+
+  <!-- Small accent dot below the V -->
+  <circle cx="256" cy="448" r="10" fill="#c07050"/>
+</svg>

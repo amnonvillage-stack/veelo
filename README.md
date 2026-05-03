@@ -54,6 +54,15 @@ Backend API calls are proxied by Vite to `localhost:8000`, so the backend must r
 
 For HTTPS on the phone (required for the camera in some browsers), wrap the dev server with a tunnel such as `cloudflared` or `ngrok`.
 
+### Install as a PWA (recommended on phones)
+
+Mobile Safari and Chrome each leave ~80–150 px of screen real estate to their own URL bar and toolbar — which is painful on a curtain-comparison UI. Installing Veelo to the home screen reclaims that space and gives the app a true full-screen, near-native feel.
+
+- **iPhone (Safari):** Open Veelo → tap the **Share** icon → **Add to Home Screen** → **Add**. Launch from the new home-screen icon — no URL bar, no Safari toolbar.
+- **Android (Chrome):** Open Veelo → tap the ⋮ menu → **Install app** (or **Add to Home screen**). Same outcome.
+
+The app advertises itself as installable via `frontend/public/manifest.json` and the `<link rel="apple-touch-icon">` + `apple-mobile-web-app-*` meta tags in `index.html`. Standalone mode is wired with `env(safe-area-inset-*)` padding on `#root`, so content respects the iPhone notch and home indicator.
+
 ## Environment variables
 
 | Var               | Where           | Required | Notes                                        |
