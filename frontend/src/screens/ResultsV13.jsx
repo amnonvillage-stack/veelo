@@ -157,6 +157,79 @@ function Drawer({ open, title, onClose, children }) {
   )
 }
 
+// ── Debug prompt inspector ─────────────────────────────────────────────────────
+// Shown when debugMode=true and a dry_run result is available.
+// Displays the full Gemini prompt text and a "Run generation" CTA.
+function DebugInspector({ preview, onConfirm }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!preview) return null
+  return (
+    <div style={{
+      margin: '0 16px 16px',
+      background: 'rgba(20,16,12,0.97)',
+      border: '1px solid rgba(192,112,80,0.4)',
+      borderRadius: 'var(--r-md)',
+      overflow: 'hidden',
+      fontFamily: 'monospace',
+    }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 14px',
+        borderBottom: expanded ? '1px solid rgba(255,255,255,0.08)' : 'none',
+        cursor: 'pointer',
+      }} onClick={() => setExpanded(e => !e)}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: '0.8rem' }}>🔬</span>
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.1em' }}>
+              DEBUG — Prompt Preview
+            </div>
+            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>
+              {preview.model} · {preview.fabric} · {preview.prompt?.length} chars
+            </div>
+          </div>
+        </div>
+        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+          {expanded ? '▲ hide' : '▼ show'}
+        </span>
+      </div>
+
+      {/* Prompt text */}
+      {expanded && (
+        <div style={{
+          padding: '12px 14px',
+          maxHeight: 260,
+          overflowY: 'auto',
+          fontSize: '0.68rem',
+          lineHeight: 1.7,
+          color: 'rgba(255,255,255,0.75)',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          {preview.prompt}
+        </div>
+      )}
+
+      {/* CTA */}
+      <button
+        onClick={onConfirm}
+        style={{
+          width: '100%', padding: '12px 14px',
+          background: 'var(--accent)',
+          border: 'none', cursor: 'pointer',
+          fontSize: '0.78rem', fontWeight: 700,
+          letterSpacing: '0.1em', textTransform: 'uppercase',
+          color: '#fff',
+        }}
+      >
+        🚀 Run generation
+      </button>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ResultsV13({
   // generation state
@@ -178,6 +251,10 @@ export default function ResultsV13({
   onSend,            // ({ ... }) => POST /inquiry
   onBack,
   onNewRoom,
+  // debug mode
+  debugMode,         // bool — admin toggle
+  debugPreview,      // { prompt, model, fabric } | null — from dry_run
+  onConfirmGenerate, // () => fire real /generate
 }) {
   const [sheet, setSheet]   = useState(null)        // 'fabric' | 'hanger' | null
   const [sending, setSending] = useState(false)
@@ -237,6 +314,11 @@ export default function ResultsV13({
         flex: 1, overflowY: 'auto', overflowX: 'hidden',
         paddingBottom: 'calc(var(--nav-height) + 96px)',
       }}>
+
+        {/* Debug prompt inspector — only visible when admin debug mode is ON */}
+        {debugMode && (debugPreview || generating || analysing) && (
+          <DebugInspector preview={debugPreview} onConfirm={onConfirmGenerate} />
+        )}
 
         {/* Image area */}
         <div style={{

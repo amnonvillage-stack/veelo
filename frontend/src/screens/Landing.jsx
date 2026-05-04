@@ -232,7 +232,7 @@ export default function Landing({ onStart, onAdmin }) {
 
         <div style={S.heroSub}>
           Design custom curtains for your home and preview them — photo-real — on your
-          actual window. No measurement guesswork, no surprises.
+          actual window.
         </div>
 
         <div style={{ height: 22 }} />

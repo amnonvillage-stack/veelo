@@ -60,9 +60,14 @@ export default function App() {
 
   // ── Debug mode (admin-only) ────────────────────────────────────────────────
   const [debugMode, setDebugMode] = useState(false)
+  // When debugMode=true, runGeneration pauses here after dry_run and waits
+  // for the user to confirm before calling the real /generate endpoint.
+  const [debugPreview, setDebugPreview] = useState(null) // { prompt, model, fabric }
 
   // Latest-only guard to avoid stale regen results overwriting fresh ones
   const genTokenRef = useRef(0)
+  // Stores the args needed to resume real generation after debug confirmation
+  const pendingGenRef = useRef(null)
 
   // ── Navigation helpers ─────────────────────────────────────────────────────
   const goTo = useCallback(s => setScreen(s), [])
@@ -77,6 +82,7 @@ export default function App() {
     setRoomFile(null); setRoomUrl(null)
     setCurtainPoints([]); setCzWidthCm(''); setCzHeightCm('')
     setAnalysis(null); setSimulation(null); setGenError(null)
+    setDebugPreview(null); pendingGenRef.current = null
     setAnalysing(false); setGenerating(false)
     setScreen('landing')
   }, [roomUrl, simulation])
@@ -114,13 +120,55 @@ export default function App() {
   }, [roomUrl])
 
   // ── Generation pipeline (analyse + generate) ───────────────────────────────
-  // Used both for first render (after MarkWindow) and for fabric swaps from Results.
+  // When debugMode=false (normal): analyse → generate in one shot.
+  // When debugMode=true: analyse → dry_run (get prompt text) → pause.
+  //   User inspects prompt in ResultsV13 debug panel → clicks confirm →
+  //   handleConfirmGenerate() resumes with the real /generate call.
+
+  // Step B-real: fire the actual /generate call.
+  // Called either immediately (debugMode=false) or after user confirmation.
+  const fireGenerate = useCallback(async (myToken, chosenFabric, points, wCm, hCm, analysisResult) => {
+    const fd = new FormData()
+    fd.append('room_image',   roomFile)
+    fd.append('fabric_id',    chosenFabric.id)
+    fd.append('curtain_type', curtainType)
+    fd.append('cz_width_cm',  wCm || '')
+    fd.append('cz_height_cm', hCm || '')
+    if (points?.length === 4) {
+      fd.append('window_points', JSON.stringify(points))
+      fd.append('curtain_zone',  JSON.stringify(points))
+    }
+    if (analysisResult) fd.append('analysis_json', JSON.stringify(analysisResult))
+
+    try {
+      const res = await fetch('/generate', { method: 'POST', body: fd })
+      if (!res.ok) {
+        let reason = `HTTP ${res.status}`
+        try { const j = await res.json(); reason = j.error || reason } catch {}
+        throw new Error(reason)
+      }
+      const blob = await res.blob()
+      if (myToken !== genTokenRef.current) return   // stale guard
+      setSimulation(prev => {
+        if (prev?.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(prev.imageUrl)
+        return { fabric: chosenFabric, imageUrl: URL.createObjectURL(blob) }
+      })
+    } catch (err) {
+      console.error(err)
+      if (myToken === genTokenRef.current) setGenError(err.message || String(err))
+    } finally {
+      if (myToken === genTokenRef.current) setGenerating(false)
+    }
+  }, [roomFile, curtainType])
+
   const runGeneration = useCallback(async (chosenFabric, points, wCm, hCm) => {
     if (!roomFile || !chosenFabric) return
 
     const myToken = ++genTokenRef.current
     setGenerating(true)
     setGenError(null)
+    setDebugPreview(null)
+    pendingGenRef.current = null
 
     let analysisResult = analysis
     try {
@@ -144,40 +192,60 @@ export default function App() {
         }
       }
 
-      // Step B: generate
-      const fd = new FormData()
-      fd.append('room_image',   roomFile)
-      fd.append('fabric_id',    chosenFabric.id)
-      fd.append('curtain_type', curtainType)
-      fd.append('cz_width_cm',  wCm || '')
-      fd.append('cz_height_cm', hCm || '')
-      if (points?.length === 4) {
-        fd.append('window_points', JSON.stringify(points))
-        fd.append('curtain_zone',  JSON.stringify(points))
-      }
-      if (analysisResult) fd.append('analysis_json', JSON.stringify(analysisResult))
+      // Step B: debug dry-run OR real generate
+      if (debugMode) {
+        // Fetch the prompt text without calling Gemini — so the user can inspect it
+        const fd = new FormData()
+        fd.append('room_image',   roomFile)
+        fd.append('fabric_id',    chosenFabric.id)
+        fd.append('curtain_type', curtainType)
+        fd.append('cz_width_cm',  wCm || '')
+        fd.append('cz_height_cm', hCm || '')
+        if (points?.length === 4) {
+          fd.append('window_points', JSON.stringify(points))
+          fd.append('curtain_zone',  JSON.stringify(points))
+        }
+        if (analysisResult) fd.append('analysis_json', JSON.stringify(analysisResult))
+        fd.append('dry_run', '1')
 
-      const res = await fetch('/generate', { method: 'POST', body: fd })
-      if (!res.ok) {
-        let reason = `HTTP ${res.status}`
-        try { const j = await res.json(); reason = j.error || reason } catch {}
-        throw new Error(reason)
+        const res = await fetch('/generate', { method: 'POST', body: fd })
+        if (myToken !== genTokenRef.current) return
+        if (res.ok) {
+          const data = await res.json()
+          if (myToken !== genTokenRef.current) return
+          // Pause: store preview and the args needed to resume
+          setDebugPreview({ prompt: data.prompt, model: data.model, fabric: data.fabric })
+          pendingGenRef.current = { myToken, chosenFabric, points, wCm, hCm, analysisResult }
+          setGenerating(false)   // stop spinner — user is inspecting
+        } else {
+          throw new Error(`Dry-run failed: HTTP ${res.status}`)
+        }
+      } else {
+        // Normal path: fire immediately
+        await fireGenerate(myToken, chosenFabric, points, wCm, hCm, analysisResult)
       }
-      const blob = await res.blob()
-      // Stale guard — if a newer regen has started, drop this result
-      if (myToken !== genTokenRef.current) return
-      // Free old blob URL before swapping
-      setSimulation(prev => {
-        if (prev?.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(prev.imageUrl)
-        return { fabric: chosenFabric, imageUrl: URL.createObjectURL(blob) }
-      })
     } catch (err) {
       console.error(err)
-      if (myToken === genTokenRef.current) setGenError(err.message || String(err))
-    } finally {
-      if (myToken === genTokenRef.current) setGenerating(false)
+      if (myToken === genTokenRef.current) {
+        setGenError(err.message || String(err))
+        setGenerating(false)
+      }
     }
-  }, [roomFile, curtainType, analysis])
+  }, [roomFile, curtainType, analysis, debugMode, fireGenerate])
+
+  // Called from ResultsV13 "Run generation" button when debugMode is active
+  const handleConfirmGenerate = useCallback(async () => {
+    const pending = pendingGenRef.current
+    if (!pending) return
+    pendingGenRef.current = null
+    setDebugPreview(null)
+    setGenerating(true)
+    setGenError(null)
+    await fireGenerate(
+      pending.myToken, pending.chosenFabric,
+      pending.points, pending.wCm, pending.hCm, pending.analysisResult,
+    )
+  }, [fireGenerate])
 
   // ── Step 4: Mark window → kick off generation ──────────────────────────────
   const handleMarkDone = useCallback(({ points, widthCm, heightCm }) => {
@@ -298,6 +366,9 @@ export default function App() {
         onSend={handleSendInquiry}
         onBack={() => goTo('mark')}
         onNewRoom={startOver}
+        debugMode={debugMode}
+        debugPreview={debugPreview}
+        onConfirmGenerate={handleConfirmGenerate}
       />
     ),
     sent: (
