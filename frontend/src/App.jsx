@@ -1,82 +1,159 @@
-import { useState, useCallback } from 'react'
-import Capture   from './screens/Capture.jsx'
-import Configure from './screens/Configure.jsx'
-import Catalog   from './screens/Catalog.jsx'
-import Results   from './screens/Results.jsx'
-import Admin     from './screens/Admin.jsx'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import Landing          from './screens/Landing.jsx'
+import ConfigureCurtain from './screens/ConfigureCurtain.jsx'
+import Email            from './screens/Email.jsx'
+import Capture          from './screens/Capture.jsx'
+import MarkWindow       from './screens/MarkWindow.jsx'
+import ResultsV13       from './screens/ResultsV13.jsx'
+import Sent             from './screens/Sent.jsx'
+import Admin            from './screens/Admin.jsx'
 
 // ── App-level shared state ────────────────────────────────────────────────────
-// Screens: capture → configure → catalog → results
-// State flows down; navigation callbacks bubble up.
+// v1.3 flow:
+//   landing → configure → email → capture → mark → results → sent
+//
+// Why orchestration lives here (not in a screen):
+//   The generation pipeline (analyse → generate) is shared between two paths:
+//     1. First-time render after MarkWindow.onDone
+//     2. Fabric swaps from inside ResultsV13
+//   Centralising it here means a single source of truth for the simulation +
+//   no duplicated /analyze and /generate calls scattered across screens.
+//
+// State that persists across screens (so the user can press back without losing
+// data) is split logically — config, contact, photo, geometry, results.
+//
+// Admin screen is reachable from Landing (gear icon) and is fully out-of-band;
+// it doesn't share the configurator state.
 
 export default function App() {
-  const [screen, setScreen] = useState('capture')
+  const [screen, setScreen] = useState('landing')
 
-  // Room
+  // ── Configure (curtain type + fabric + hanger + wings) ──────────────────────
+  const [curtainType, setCurtainType] = useState('')
+  const [fabric,      setFabric]      = useState(null)
+  const [hanger,      setHanger]      = useState(null)
+  const [wings,       setWings]       = useState(2)
+
+  // Catalogue caches — used by ResultsV13 swap drawers without re-fetching.
+  // Populated when fabric/hanger are chosen on ConfigureCurtain.
+  const [fabricChoices, setFabricChoices] = useState([])
+  const [hangerChoices, setHangerChoices] = useState([])
+
+  // ── Email ──────────────────────────────────────────────────────────────────
+  const [customerEmail, setCustomerEmail] = useState('')
+
+  // ── Photo ──────────────────────────────────────────────────────────────────
   const [roomFile, setRoomFile] = useState(null)
   const [roomUrl,  setRoomUrl]  = useState(null)
-  const [analysis, setAnalysis] = useState(null)
 
-  // Configure — one quad that defines the curtain area (also used as window reference)
-  const [curtainPoints, setCurtainPoints] = useState([])  // [{x,y}] × 4
-  const [curtainType,   setCurtainType]   = useState('')
+  // ── Window marking ─────────────────────────────────────────────────────────
+  const [curtainPoints, setCurtainPoints] = useState([])
   const [czWidthCm,     setCzWidthCm]     = useState('')
   const [czHeightCm,    setCzHeightCm]    = useState('')
 
-  // Catalog
-  const [selectedFabrics, setSelectedFabrics] = useState([])
+  // ── Generation result ──────────────────────────────────────────────────────
+  const [analysis,   setAnalysis]   = useState(null)
+  const [simulation, setSimulation] = useState(null)   // { fabric, imageUrl }
+  const [genError,   setGenError]   = useState(null)
+  const [analysing,  setAnalysing]  = useState(false)
+  const [generating, setGenerating] = useState(false)
 
-  // Results
-  const [results,   setResults]   = useState([])
-  const [genError,  setGenError]  = useState(null)
-  const [analysing, setAnalysing] = useState(false)
+  // ── Debug mode (admin-only) ────────────────────────────────────────────────
+  const [debugMode, setDebugMode] = useState(false)
 
-  // Debug mode
-  const [debugMode,     setDebugMode]     = useState(false)
-  const [promptPreview, setPromptPreview] = useState(null)
+  // Latest-only guard to avoid stale regen results overwriting fresh ones
+  const genTokenRef = useRef(0)
 
-  // ── Navigation ──────────────────────────────────────────────────────────────
+  // ── Navigation helpers ─────────────────────────────────────────────────────
   const goTo = useCallback(s => setScreen(s), [])
 
+  // Hard reset — used by "Design another" on Sent.
+  const startOver = useCallback(() => {
+    if (roomUrl?.startsWith('blob:')) URL.revokeObjectURL(roomUrl)
+    if (simulation?.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(simulation.imageUrl)
+    setCurtainType(''); setFabric(null); setHanger(null); setWings(2)
+    setFabricChoices([]); setHangerChoices([])
+    setCustomerEmail('')
+    setRoomFile(null); setRoomUrl(null)
+    setCurtainPoints([]); setCzWidthCm(''); setCzHeightCm('')
+    setAnalysis(null); setSimulation(null); setGenError(null)
+    setAnalysing(false); setGenerating(false)
+    setScreen('landing')
+  }, [roomUrl, simulation])
+
+  // ── Step 1: Configure ──────────────────────────────────────────────────────
+  const handleConfigureContinue = useCallback(({ curtainType, fabric, hanger, wings }) => {
+    setCurtainType(curtainType)
+    setFabric(fabric)
+    setHanger(hanger)
+    setWings(wings)
+    setScreen('email')
+    // Fetch catalogues for later swap drawers — fire-and-forget
+    fetch(`/catalog?type=${encodeURIComponent(curtainType)}`)
+      .then(r => r.ok ? r.json() : []).then(setFabricChoices).catch(() => {})
+    fetch(`/hangers?curtain_type=${encodeURIComponent(curtainType)}`)
+      .then(r => r.ok ? r.json() : []).then(setHangerChoices).catch(() => {})
+  }, [])
+
+  // ── Step 2: Email ──────────────────────────────────────────────────────────
+  const handleEmailContinue = useCallback((email) => {
+    setCustomerEmail(email)
+    setScreen('capture')
+  }, [])
+
+  // ── Step 3: Capture photo ──────────────────────────────────────────────────
   const handleRoomPicked = useCallback((file, url) => {
+    if (roomUrl?.startsWith('blob:')) URL.revokeObjectURL(roomUrl)
     setRoomFile(file)
     setRoomUrl(url)
-    setAnalysis(null)
     setCurtainPoints([])
-    setSelectedFabrics([])
-    setResults([])
-    setGenError(null)
-    setAnalysing(false)
-    setPromptPreview(null)
-    setScreen('configure')
-  }, [])
-
-  // Configure passes back: points, curtainType, widthCm, heightCm
-  const handleConfigureDone = useCallback((pts, type, wCm, hCm) => {
-    setCurtainPoints(pts)
-    setCurtainType(type)
-    setCzWidthCm(wCm)
-    setCzHeightCm(hCm)
     setAnalysis(null)
-    setScreen('catalog')
-  }, [])
+    setSimulation(null)
+    setGenError(null)
+    setScreen('mark')
+  }, [roomUrl])
 
-  // ── Core generation runner ──────────────────────────────────────────────────
-  const runGenerations = useCallback(async (fabrics, analysisResult) => {
-    const jobs = fabrics.map(async (fabric) => {
+  // ── Generation pipeline (analyse + generate) ───────────────────────────────
+  // Used both for first render (after MarkWindow) and for fabric swaps from Results.
+  const runGeneration = useCallback(async (chosenFabric, points, wCm, hCm) => {
+    if (!roomFile || !chosenFabric) return
+
+    const myToken = ++genTokenRef.current
+    setGenerating(true)
+    setGenError(null)
+
+    let analysisResult = analysis
+    try {
+      // Step A: analyse — only first time (cached on subsequent regens)
+      if (!analysisResult) {
+        setAnalysing(true)
+        try {
+          const fd = new FormData()
+          fd.append('room_image', roomFile)
+          if (points?.length === 4) fd.append('selection', JSON.stringify(points))
+          const r = await fetch('/analyze', { method: 'POST', body: fd })
+          const data = r.ok ? await r.json() : null
+          if (data?.ok && data.analysis) {
+            analysisResult = data.analysis
+            if (myToken === genTokenRef.current) setAnalysis(analysisResult)
+          }
+        } catch (e) {
+          console.warn('Analysis failed, continuing without it:', e)
+        } finally {
+          if (myToken === genTokenRef.current) setAnalysing(false)
+        }
+      }
+
+      // Step B: generate
       const fd = new FormData()
       fd.append('room_image',   roomFile)
-      fd.append('fabric_id',    fabric.id)
+      fd.append('fabric_id',    chosenFabric.id)
       fd.append('curtain_type', curtainType)
-      fd.append('cz_width_cm',  czWidthCm  || '')
-      fd.append('cz_height_cm', czHeightCm || '')
-
-      // The curtain quad serves double duty:
-      //   window_points → disambiguation (which window to target)
-      //   curtain_zone  → placement geometry (where the curtain goes)
-      if (curtainPoints.length === 4) {
-        fd.append('window_points', JSON.stringify(curtainPoints))
-        fd.append('curtain_zone',  JSON.stringify(curtainPoints))
+      fd.append('cz_width_cm',  wCm || '')
+      fd.append('cz_height_cm', hCm || '')
+      if (points?.length === 4) {
+        fd.append('window_points', JSON.stringify(points))
+        fd.append('curtain_zone',  JSON.stringify(points))
       }
       if (analysisResult) fd.append('analysis_json', JSON.stringify(analysisResult))
 
@@ -84,140 +161,156 @@ export default function App() {
       if (!res.ok) {
         let reason = `HTTP ${res.status}`
         try { const j = await res.json(); reason = j.error || reason } catch {}
-        throw new Error(`${fabric.name}: ${reason}`)
+        throw new Error(reason)
       }
       const blob = await res.blob()
-      return { fabric, imageUrl: URL.createObjectURL(blob) }
-    })
-
-    for (const job of jobs) {
-      try {
-        const result = await job
-        setResults(prev => [...prev, result])
-      } catch (err) {
-        console.error(err)
-        setGenError(`Generation failed for one or more fabrics. ${err.message}`)
-      }
+      // Stale guard — if a newer regen has started, drop this result
+      if (myToken !== genTokenRef.current) return
+      // Free old blob URL before swapping
+      setSimulation(prev => {
+        if (prev?.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(prev.imageUrl)
+        return { fabric: chosenFabric, imageUrl: URL.createObjectURL(blob) }
+      })
+    } catch (err) {
+      console.error(err)
+      if (myToken === genTokenRef.current) setGenError(err.message || String(err))
+    } finally {
+      if (myToken === genTokenRef.current) setGenerating(false)
     }
-  }, [roomFile, curtainType, czWidthCm, czHeightCm, curtainPoints])
+  }, [roomFile, curtainType, analysis])
 
-  // ── Main generate entry point ───────────────────────────────────────────────
-  const handleGenerate = useCallback(async (fabrics) => {
-    setSelectedFabrics(fabrics)
-    setResults([])
+  // ── Step 4: Mark window → kick off generation ──────────────────────────────
+  const handleMarkDone = useCallback(({ points, widthCm, heightCm }) => {
+    setCurtainPoints(points)
+    setCzWidthCm(widthCm)
+    setCzHeightCm(heightCm)
+    setSimulation(null)
     setGenError(null)
-    setAnalysis(null)
-    setPromptPreview(null)
-    setAnalysing(true)
     setScreen('results')
+    runGeneration(fabric, points, widthCm, heightCm)
+  }, [fabric, runGeneration])
 
-    // Step 1: Analyse — pass the curtain quad as the window selection
-    let analysisResult = null
-    try {
-      const fd = new FormData()
-      fd.append('room_image', roomFile)
-      if (curtainPoints.length === 4) fd.append('selection', JSON.stringify(curtainPoints))
-      const r    = await fetch('/analyze', { method: 'POST', body: fd })
-      const data = r.ok ? await r.json() : null
-      if (data?.ok && data.analysis) {
-        analysisResult = data.analysis
-        setAnalysis(analysisResult)
-      }
-    } catch (e) {
-      console.warn('Analysis failed, continuing without it:', e)
-    }
-    setAnalysing(false)
+  // ── Results: fabric swap → regenerate ──────────────────────────────────────
+  const handleChangeFabric = useCallback((newFabric) => {
+    if (!newFabric || newFabric.id === fabric?.id) return
+    setFabric(newFabric)
+    runGeneration(newFabric, curtainPoints, czWidthCm, czHeightCm)
+  }, [fabric, curtainPoints, czWidthCm, czHeightCm, runGeneration])
 
-    // Step 2a: Debug mode — dry-run to inspect prompt before generating
-    if (debugMode && fabrics.length > 0) {
-      try {
-        const fd = new FormData()
-        fd.append('room_image',   roomFile)
-        fd.append('fabric_id',    fabrics[0].id)
-        fd.append('curtain_type', curtainType)
-        fd.append('cz_width_cm',  czWidthCm  || '')
-        fd.append('cz_height_cm', czHeightCm || '')
-        if (curtainPoints.length === 4) {
-          fd.append('window_points', JSON.stringify(curtainPoints))
-          fd.append('curtain_zone',  JSON.stringify(curtainPoints))
-        }
-        if (analysisResult) fd.append('analysis_json', JSON.stringify(analysisResult))
-        fd.append('dry_run', '1')
+  // Hanger swap is metadata-only (no regen)
+  const handleChangeHanger = useCallback((newHanger) => {
+    setHanger(newHanger)
+  }, [])
 
-        const res  = await fetch('/generate', { method: 'POST', body: fd })
-        const data = res.ok ? await res.json() : null
-        if (data?.ok && data.prompt) {
-          setPromptPreview({ prompt: data.prompt, fabrics, analysis: analysisResult })
-          return
-        }
-      } catch (e) {
-        console.warn('Dry-run failed, proceeding:', e)
-      }
+  // ── Send inquiry → POST /inquiry → confirmation ────────────────────────────
+  const handleSendInquiry = useCallback(async ({ priceEstimate }) => {
+    if (!simulation?.imageUrl || !roomFile) {
+      throw new Error('Missing simulation or source image')
     }
 
-    // Step 2b: Generate
-    await runGenerations(fabrics, analysisResult)
-  }, [roomFile, curtainType, czWidthCm, czHeightCm, curtainPoints, debugMode, runGenerations])
+    // Convert simulation blob URL back to a Blob for upload
+    const simResp = await fetch(simulation.imageUrl)
+    const simBlob = await simResp.blob()
 
-  // ── Continue after prompt inspection ───────────────────────────────────────
-  const handleContinue = useCallback(async () => {
-    if (!promptPreview) return
-    const { fabrics, analysis: savedAnalysis } = promptPreview
-    setPromptPreview(null)
-    await runGenerations(fabrics, savedAnalysis)
-  }, [promptPreview, runGenerations])
+    const fd = new FormData()
+    fd.append('source_image',     roomFile)
+    fd.append('simulation_image', simBlob, 'simulation.png')
+    fd.append('customer_email',   customerEmail)
+    fd.append('curtain_type',     curtainType)
+    fd.append('fabric_id',        fabric?.id || '')
+    fd.append('hanger_id',        hanger?.id || '')
+    fd.append('wings',            String(wings))
+    fd.append('width_cm',         czWidthCm)
+    fd.append('height_cm',        czHeightCm)
+    fd.append('window_points',    JSON.stringify(curtainPoints))
+    fd.append('price_estimate',   priceEstimate || '')
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-  const isGenerating = !analysing && !promptPreview && results.length < selectedFabrics.length && !genError
+    const r = await fetch('/inquiry', { method: 'POST', body: fd })
+    if (!r.ok) {
+      let reason = `HTTP ${r.status}`
+      try { const j = await r.json(); reason = j.error || reason } catch {}
+      throw new Error(reason)
+    }
+    setScreen('sent')
+  }, [
+    simulation, roomFile, customerEmail, curtainType,
+    fabric, hanger, wings, czWidthCm, czHeightCm, curtainPoints,
+  ])
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   const screens = {
+    landing: (
+      <Landing
+        onStart={() => goTo('configure')}
+        onAdmin={() => goTo('admin')}
+      />
+    ),
+    configure: (
+      <ConfigureCurtain
+        initialType={curtainType}
+        initialFabric={fabric}
+        initialHanger={hanger}
+        initialWings={wings}
+        onBack={() => goTo('landing')}
+        onContinue={handleConfigureContinue}
+      />
+    ),
+    email: (
+      <Email
+        initialEmail={customerEmail}
+        onBack={() => goTo('configure')}
+        onContinue={handleEmailContinue}
+      />
+    ),
     capture: (
       <Capture
         onRoomPicked={handleRoomPicked}
         onAdmin={() => goTo('admin')}
       />
     ),
-    configure: (
-      <Configure
+    mark: (
+      <MarkWindow
         roomUrl={roomUrl}
-        roomFile={roomFile}
-        analysis={analysis}
         initialPoints={curtainPoints}
-        initialType={curtainType}
-        onBack={() => goTo('capture')}
-        onDone={handleConfigureDone}
-      />
-    ),
-    catalog: (
-      <Catalog
+        initialWidthCm={czWidthCm}
+        initialHeightCm={czHeightCm}
         curtainType={curtainType}
-        onBack={() => goTo('configure')}
-        onGenerate={handleGenerate}
+        onBack={() => goTo('capture')}
+        onDone={handleMarkDone}
       />
     ),
     results: (
-      <Results
-        results={results}
-        selectedFabrics={selectedFabrics}
-        roomUrl={roomUrl}
-        czWidthCm={czWidthCm}
-        czHeightCm={czHeightCm}
-        curtainType={curtainType}
+      <ResultsV13
+        simulation={simulation}
+        generating={generating}
         analysing={analysing}
-        generating={isGenerating}
-        promptPreview={promptPreview}
-        onContinue={handleContinue}
-        onCancelPreview={() => { setPromptPreview(null); goTo('catalog') }}
         error={genError}
-        onBack={() => goTo('catalog')}
-        onNewRoom={() => goTo('capture')}
+        curtainType={curtainType}
+        widthCm={czWidthCm}
+        heightCm={czHeightCm}
+        fabric={fabric}
+        hanger={hanger}
+        wings={wings}
+        fabricChoices={fabricChoices}
+        hangerChoices={hangerChoices}
+        onChangeFabric={handleChangeFabric}
+        onChangeHanger={handleChangeHanger}
+        onSend={handleSendInquiry}
+        onBack={() => goTo('mark')}
+        onNewRoom={startOver}
+      />
+    ),
+    sent: (
+      <Sent
+        email={customerEmail}
+        onStartOver={startOver}
       />
     ),
     admin: (
       <Admin
         debugMode={debugMode}
         onToggleDebug={() => setDebugMode(m => !m)}
-        onBack={() => goTo('capture')}
+        onBack={() => goTo('landing')}
       />
     ),
   }

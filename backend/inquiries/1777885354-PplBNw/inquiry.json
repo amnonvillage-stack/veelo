@@ -1,0 +1,40 @@
+{
+  "id": "1777885354-PplBNw",
+  "created_at": 1777885354,
+  "customer_email": "amnonvillage@gmail.com",
+  "curtain_type": "eyelet",
+  "fabric": {
+    "id": "121-eyelet",
+    "name": "121",
+    "price_per_m": 121.0
+  },
+  "hanger": {
+    "id": "decorative_rod",
+    "name": "Decorative Rod",
+    "price": 180
+  },
+  "wings": 2,
+  "dimensions_cm": {
+    "width": 160.0,
+    "height": 120.0
+  },
+  "window_points": [
+    {
+      "x": 1142.3999999999999,
+      "y": 691.4249999999993
+    },
+    {
+      "x": 1100.3999999999999,
+      "y": 2291.624999999999
+    },
+    {
+      "x": 2864.3999999999996,
+      "y": 2249.6249999999986
+    },
+    {
+      "x": 2889.5999999999995,
+      "y": 695.624999999999
+    }
+  ],
+  "price_estimate": "₪943–1,276"
+}

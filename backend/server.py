@@ -497,6 +497,33 @@ app = FastAPI()
 SWATCHES_DIR = CATALOG_DIR / "swatches"
 SWATCHES_DIR.mkdir(parents=True, exist_ok=True)
 
+
+# ── Startup banner: print which email transport is active ────────────────────
+# Saves the "I sent an inquiry and nothing happened" debugging dance — at
+# server boot you can immediately see whether Resend, SMTP, or disk-only is
+# the active path, plus whether Resend is in sandbox mode.
+@app.on_event("startup")
+def _log_email_transport_status():
+    recipient = os.environ.get("VEELO_INQUIRY_TO", "amnonvillage@gmail.com")
+    if os.environ.get("RESEND_API_KEY"):
+        from_addr = os.environ.get("RESEND_FROM", "Veelo <onboarding@resend.dev>")
+        sandbox = "onboarding@resend.dev" in from_addr.lower()
+        mode = "SANDBOX (only delivers to account email)" if sandbox else "production domain"
+        print(f"  ✉️  Email transport: Resend [{mode}]")
+        print(f"      from      : {from_addr}")
+        print(f"      recipient : {recipient}")
+        if sandbox:
+            print(f"      ⚠  Customer CC will be suppressed until you verify a domain.")
+    elif os.environ.get("SMTP_HOST"):
+        host = os.environ.get("SMTP_HOST")
+        port = os.environ.get("SMTP_PORT", "587")
+        user = os.environ.get("SMTP_USER", "(unset)")
+        print(f"  ✉️  Email transport: SMTP {host}:{port} as {user}")
+        print(f"      recipient : {recipient}")
+    else:
+        print("  ⚠️  Email transport: NONE — /inquiry will only write .eml to disk.")
+        print("      Set RESEND_API_KEY (recommended) or SMTP_HOST/USER/PASS in backend/.env.")
+
 @app.get("/")
 def index():
     return {"service": "Veelo API", "status": "ok", "model": MODEL_NAME}
@@ -610,6 +637,23 @@ def catalog_delete(product_id: str):
         _write_catalog([p for p in products if p["id"] != product_id])
         print(f"  🗑️  Deleted fabric: {product_id}")
         return JSONResponse({"ok": True})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ── Hangers (rod / track / rail catalog) ──────────────────────────────────────
+def _read_hangers():
+    f = CATALOG_DIR / "hangers.json"
+    return json.loads(f.read_text("utf-8")) if f.exists() else []
+
+@app.get("/hangers")
+def hangers_list(curtain_type: Optional[str] = None):
+    """Return all hanger options, optionally filtered by curtain type compatibility."""
+    try:
+        hangers = _read_hangers()
+        if curtain_type:
+            hangers = [h for h in hangers if curtain_type in h.get("compatible_types", [])]
+        return JSONResponse(content=hangers)
     except Exception as e:
         import traceback; traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -927,6 +971,309 @@ async def generate(
         buf = io.BytesIO()
         out_img.save(buf, format="PNG")
         return FastAPIResponse(content=buf.getvalue(), media_type="image/png")
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ── Inquiry — final submission from Results screen ────────────────────────────
+# Persists the simulation + source + full config to disk AND attempts to send a
+# real email. The .eml is always written as an audit trail (so we can re-send
+# manually or debug deliverability). The send attempt is best-effort: failures
+# are logged but the API still returns 200 — we never want to block a user from
+# receiving confirmation because our SMTP creds are momentarily wrong.
+#
+# Send transport priority:
+#   1. Resend API (RESEND_API_KEY)            ← preferred for prod (PRD §9.6)
+#   2. SMTP (SMTP_HOST/USER/PASS)             ← Gmail-style app passwords
+#   3. None — write .eml only, log a warning  ← dev fallback
+INQUIRIES_DIR = SCRIPT_DIR / "inquiries"
+INQUIRIES_DIR.mkdir(exist_ok=True)
+RECIPIENT_EMAIL = os.environ.get("VEELO_INQUIRY_TO", "amnonvillage@gmail.com")
+
+def _build_inquiry_eml(*, inquiry_id, customer_email, summary_lines,
+                       source_bytes, simulation_bytes,
+                       from_addr=None, cc_customer=True):
+    """Build a multipart RFC-822 .eml string with two image attachments.
+
+    `from_addr` defaults to the customer's email (display-only) but real SMTP
+    transport will use SMTP_FROM/SMTP_USER as the envelope sender. CC'ing the
+    customer satisfies the Sent.jsx promise of 'A copy is on its way to {email}'.
+    """
+    from email.message import EmailMessage
+    msg = EmailMessage()
+    msg["Subject"] = f"[Veelo] New curtain inquiry — {inquiry_id}"
+    msg["From"]    = from_addr or f"Veelo <{customer_email}>"
+    msg["To"]      = RECIPIENT_EMAIL
+    if cc_customer and customer_email != RECIPIENT_EMAIL:
+        msg["Cc"]  = customer_email
+    msg["Reply-To"] = customer_email
+    body = (
+        "A new Veelo inquiry was submitted.\n\n"
+        f"Inquiry ID : {inquiry_id}\n"
+        f"Customer   : {customer_email}\n\n"
+        + "\n".join(summary_lines)
+        + "\n\nSource image and simulation are attached.\n"
+    )
+    msg.set_content(body)
+    msg.add_attachment(source_bytes, maintype="image", subtype="png",
+                       filename=f"{inquiry_id}-source.png")
+    msg.add_attachment(simulation_bytes, maintype="image", subtype="png",
+                       filename=f"{inquiry_id}-simulation.png")
+    return msg, bytes(msg)
+
+
+def _send_via_smtp(msg, recipients):
+    """Send an EmailMessage via SMTP. Returns (ok, error_str)."""
+    host = os.environ.get("SMTP_HOST")
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    user = os.environ.get("SMTP_USER")
+    pwd  = os.environ.get("SMTP_PASS")
+    if not (host and user and pwd):
+        return False, "SMTP not configured (set SMTP_HOST, SMTP_USER, SMTP_PASS)"
+    from_addr = os.environ.get("SMTP_FROM", user)
+    # Override the From header so the envelope sender matches the auth account
+    # (Gmail / most providers reject mismatched envelope-vs-header senders).
+    del msg["From"]
+    msg["From"] = from_addr
+
+    import smtplib, ssl
+    try:
+        if port == 465:
+            ctx = ssl.create_default_context()
+            with smtplib.SMTP_SSL(host, port, context=ctx, timeout=30) as s:
+                s.login(user, pwd)
+                s.send_message(msg, from_addr=from_addr, to_addrs=recipients)
+        else:
+            with smtplib.SMTP(host, port, timeout=30) as s:
+                s.ehlo()
+                s.starttls(context=ssl.create_default_context())
+                s.ehlo()
+                s.login(user, pwd)
+                s.send_message(msg, from_addr=from_addr, to_addrs=recipients)
+        return True, None
+    except Exception as e:
+        return False, f"SMTP send failed: {e}"
+
+
+def _send_via_resend(*, customer_email, summary_lines, inquiry_id,
+                     source_bytes, simulation_bytes, recipients):
+    """Send via Resend API. Returns (ok, error_str)."""
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        return False, "Resend not configured (set RESEND_API_KEY)"
+    from_addr = os.environ.get("RESEND_FROM", "Veelo <onboarding@resend.dev>")
+
+    # ── Sandbox guard ─────────────────────────────────────────────────────────
+    # Resend's default sandbox sender (`onboarding@resend.dev`) only delivers to
+    # the email tied to the Resend account. If we leave the customer email in
+    # `to`, Resend rejects the whole request with HTTP 403 and nobody — not even
+    # the founder — gets the inquiry. So in sandbox mode we drop any recipient
+    # other than RECIPIENT_EMAIL. Once a real domain is verified, set
+    # RESEND_FROM to that domain and the full recipient list goes through.
+    sandbox = "onboarding@resend.dev" in from_addr.lower()
+    if sandbox:
+        recipients = [r for r in recipients if r == RECIPIENT_EMAIL]
+        if not recipients:
+            recipients = [RECIPIENT_EMAIL]
+
+    body_text = (
+        f"A new Veelo inquiry was submitted.\n\n"
+        f"Inquiry ID : {inquiry_id}\n"
+        f"Customer   : {customer_email}\n\n"
+        + "\n".join(summary_lines)
+        + "\n\nSource image and simulation are attached.\n"
+    )
+    if sandbox and customer_email != RECIPIENT_EMAIL:
+        body_text += (
+            f"\n[Sandbox mode] Customer CC suppressed — Resend sandbox sender "
+            f"only delivers to {RECIPIENT_EMAIL}. Verify a domain in Resend and "
+            f"set RESEND_FROM to enable customer CC.\n"
+        )
+
+    payload = {
+        "from":    from_addr,
+        "to":      recipients,
+        "reply_to": customer_email,
+        "subject": f"[Veelo] New curtain inquiry — {inquiry_id}",
+        "text":    body_text,
+        "attachments": [
+            {"filename": f"{inquiry_id}-source.png",
+             "content":  base64.b64encode(source_bytes).decode()},
+            {"filename": f"{inquiry_id}-simulation.png",
+             "content":  base64.b64encode(simulation_bytes).decode()},
+        ],
+    }
+
+    import urllib.request, urllib.error
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data    = json.dumps(payload).encode(),
+        method  = "POST",
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type":  "application/json",
+            # Resend is fronted by Cloudflare; the default Python-urllib UA
+            # trips a WAF rule and returns "HTTP 403: error code 1010" before
+            # the request reaches Resend. A real-looking UA bypasses it.
+            "User-Agent":    "Veelo/1.0 (+https://veelo.app)",
+            "Accept":        "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            if 200 <= resp.status < 300:
+                return True, None
+            return False, f"Resend HTTP {resp.status}: {resp.read().decode(errors='replace')[:200]}"
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")[:200] if e.fp else ""
+        return False, f"Resend HTTP {e.code}: {body}"
+    except Exception as e:
+        return False, f"Resend send failed: {e}"
+
+@app.post("/inquiry")
+async def submit_inquiry(
+    source_image:     UploadFile = File(...),
+    simulation_image: UploadFile = File(...),
+    customer_email:   str = Form(...),
+    curtain_type:     str = Form(""),
+    fabric_id:        str = Form(""),
+    hanger_id:        str = Form(""),
+    wings:            str = Form("1"),
+    width_cm:         str = Form(""),
+    height_cm:        str = Form(""),
+    window_points:    str = Form(""),  # JSON string
+    price_estimate:   str = Form(""),
+):
+    try:
+        # Sanity-check email — same regex as frontend; cheap defence-in-depth
+        if not re.match(r"^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$", customer_email):
+            return JSONResponse({"error": "invalid email"}, status_code=400)
+
+        inquiry_id = f"{int(time.time())}-{base64.urlsafe_b64encode(os.urandom(4)).decode().rstrip('=')}"
+        out_dir = INQUIRIES_DIR / inquiry_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        # ── Persist images ────────────────────────────────────────────────────
+        source_bytes = await source_image.read()
+        sim_bytes    = await simulation_image.read()
+        (out_dir / "source.png").write_bytes(source_bytes)
+        (out_dir / "simulation.png").write_bytes(sim_bytes)
+
+        # ── Look up fabric + hanger names so the email is human-readable ──────
+        catalog = _read_catalog()
+        product = next((p for p in catalog if p["id"] == fabric_id), None)
+        fabric_name  = product["name"] if product else fabric_id
+        fabric_price = product.get("price_per_m") if product else None
+
+        hangers = _read_hangers()
+        hanger  = next((h for h in hangers if h["id"] == hanger_id), None)
+        hanger_name  = hanger["name"]  if hanger else hanger_id
+        hanger_price = hanger.get("price") if hanger else None
+
+        # ── Persist structured payload ────────────────────────────────────────
+        payload = {
+            "id":              inquiry_id,
+            "created_at":      int(time.time()),
+            "customer_email":  customer_email,
+            "curtain_type":    curtain_type,
+            "fabric": {
+                "id": fabric_id, "name": fabric_name, "price_per_m": fabric_price,
+            },
+            "hanger": {
+                "id": hanger_id, "name": hanger_name, "price": hanger_price,
+            },
+            "wings":           int(wings) if wings.isdigit() else wings,
+            "dimensions_cm": {
+                "width":  float(width_cm)  if width_cm  else None,
+                "height": float(height_cm) if height_cm else None,
+            },
+            "window_points":   json.loads(window_points) if window_points else [],
+            "price_estimate":  price_estimate,
+        }
+        (out_dir / "inquiry.json").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), "utf-8"
+        )
+
+        # ── Build human-readable summary lines ────────────────────────────────
+        summary = [
+            f"Curtain type   : {curtain_type or '—'}",
+            f"Fabric         : {fabric_name}"
+                + (f" (₪{fabric_price}/m)" if fabric_price is not None else ""),
+            f"Hanger         : {hanger_name}"
+                + (f" (+₪{hanger_price})" if hanger_price else ""),
+            f"Wings          : {wings}",
+            f"Dimensions     : "
+                + (f"{width_cm}×{height_cm} cm" if (width_cm and height_cm) else "not provided"),
+            f"Price estimate : {price_estimate or 'not provided'}",
+        ]
+
+        # ── Build EmailMessage + .eml audit copy ──────────────────────────────
+        msg, eml_bytes = _build_inquiry_eml(
+            inquiry_id     = inquiry_id,
+            customer_email = customer_email,
+            summary_lines  = summary,
+            source_bytes   = source_bytes,
+            simulation_bytes = sim_bytes,
+        )
+        (out_dir / "inquiry.eml").write_bytes(eml_bytes)
+
+        print(f"  📩  Inquiry {inquiry_id} from {customer_email}")
+        for line in summary: print(f"      {line}")
+        print(f"      → saved to {out_dir}")
+
+        # ── Attempt real send — best-effort, non-blocking for the user ────────
+        # Recipients = founder address + customer (CC'd via header is enough for
+        # most clients but explicitly listing both as RCPT TOs is more reliable).
+        recipients = [RECIPIENT_EMAIL]
+        if customer_email and customer_email != RECIPIENT_EMAIL:
+            recipients.append(customer_email)
+
+        send_ok, send_err = False, None
+        # Try Resend first (production path), fall back to SMTP, then to .eml only.
+        if os.environ.get("RESEND_API_KEY"):
+            send_ok, send_err = _send_via_resend(
+                customer_email = customer_email,
+                summary_lines  = summary,
+                inquiry_id     = inquiry_id,
+                source_bytes   = source_bytes,
+                simulation_bytes = sim_bytes,
+                recipients     = recipients,
+            )
+            transport = "resend"
+        elif os.environ.get("SMTP_HOST"):
+            send_ok, send_err = _send_via_smtp(msg, recipients)
+            transport = "smtp"
+        else:
+            transport = "none"
+            send_err  = ("No email transport configured. "
+                         "Set RESEND_API_KEY or SMTP_HOST/SMTP_USER/SMTP_PASS in backend/.env. "
+                         "The inquiry was saved to disk; the .eml can be opened in Mail.app.")
+
+        if send_ok:
+            print(f"      ✉️  Sent via {transport} → {recipients}")
+        else:
+            print(f"      ⚠️  Email NOT sent ({transport}): {send_err}")
+
+        # Persist send status alongside the inquiry for audit/retry tooling.
+        (out_dir / "send_status.json").write_text(
+            json.dumps({
+                "ok": send_ok,
+                "transport": transport,
+                "error": send_err,
+                "recipients": recipients,
+                "attempted_at": int(time.time()),
+            }, indent=2),
+            "utf-8",
+        )
+
+        return JSONResponse({
+            "ok": True,
+            "id": inquiry_id,
+            "email_sent": send_ok,
+            "transport":  transport,
+            "email_error": send_err,
+        })
 
     except Exception as e:
         import traceback; traceback.print_exc()
