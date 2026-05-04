@@ -164,7 +164,7 @@ def _normalize_quad(points):
     return [tl, tr, br, bl]
 
 
-def _cz_to_verbal_desc(z, w, r, curtain_type, cz_width_cm, cz_height_cm):
+def _cz_to_verbal_desc(z, w, r, curtain_type, cz_width_cm, cz_height_cm, wings=1):
     """
     Port of czToVerbalDesc() from the POC.
     z   : [{x_pct,y_pct}] × 4 — curtain zone corners [A=TL, B=TR, C=BR, D=BL]
@@ -203,6 +203,22 @@ def _cz_to_verbal_desc(z, w, r, curtain_type, cz_width_cm, cz_height_cm):
         suffix = ", nearly at the right photo edge" if right_pct > 95 else ""
         parts.append(f"The curtain ends at the right side of the window{suffix}.")
 
+    # ── Wings / panel count ───────────────────────────────────────────────────
+    if wings == 1:
+        parts.append(
+            "The curtain is a single panel covering the full window width — "
+            "fully closed with no gap or split anywhere."
+        )
+    else:  # 2 (or any even number treated as split)
+        parts.append(
+            "The curtain has two panels (left panel and right panel). "
+            "The left panel covers the left half of the window and the right panel covers the right half. "
+            "The two panels meet at the horizontal centre of the window "
+            "with a small gap of a few centimetres visible at that meeting point. "
+            "The gap runs vertically from top to bottom of the curtain drop. "
+            "Do NOT merge the panels into a single continuous piece of fabric."
+        )
+
     # ── Top / mounting position ──────────────────────────────────────────────
     top_pct        = (z[0]["y_pct"] + z[1]["y_pct"]) / 2   # A + B
     win_height_pct = w.get("height_pct")
@@ -216,23 +232,26 @@ def _cz_to_verbal_desc(z, w, r, curtain_type, cz_width_cm, cz_height_cm):
             if from_ceil_cm < 10:
                 parts.append(
                     "The ceiling track runs along the ceiling. "
-                    "The curtain hangs from the ceiling all the way down."
+                    "The curtain hangs from the ceiling."
                 )
             else:
+                # The curtain HANGS FROM the ceiling track — the fabric starts at
+                # the ceiling, covers the wall section above the window, then the
+                # window itself. Do NOT describe the fabric as starting at the window.
                 parts.append(
                     f"The ceiling track is installed at the ceiling. "
-                    f"The curtain fabric begins approximately {from_ceil_cm} cm below the ceiling "
-                    f"(just above the window frame)."
+                    f"The curtain hangs from the ceiling — it covers approximately "
+                    f"{from_ceil_cm} cm of wall above the window frame before reaching the window."
                 )
         elif top_pct < 0 or (ceil_visible and top_pct < 5):
             parts.append(
                 "The ceiling track runs along the ceiling. "
-                "The curtain hangs from the ceiling all the way down."
+                "The curtain hangs from the ceiling."
             )
         else:
             parts.append(
                 "The ceiling track is installed above the window. "
-                "The curtain hangs from the track down to the floor."
+                "The curtain hangs from the track."
             )
 
     elif curtain_type in ("roman", "roller"):
@@ -293,18 +312,44 @@ def _cz_to_verbal_desc(z, w, r, curtain_type, cz_width_cm, cz_height_cm):
     elif near_floor:
         parts.append("The curtain reaches down to the floor.")
     elif abs(below_win_pct) <= 5:
-        if cm_per_pct:
-            win_cm = round((w.get("height_pct") or 0) * cm_per_pct)
-            parts.append(
-                f"The curtain ends at the bottom of the window frame "
-                f"(approximately {win_cm} cm of curtain). "
-                f"It does NOT extend below the window — stop the curtain at the window sill."
-            )
+        # Curtain bottom is at or within 5% of the window frame bottom.
+        #
+        # For pleated ceiling-track curtains: the user marks the window frame to
+        # define the zone — they should never need to drag markers to the floor to
+        # get floor-length curtains (that's the default for this curtain type).
+        # If the floor is visible, upgrade to floor-length automatically.
+        # If the floor is NOT visible, describe neutrally without a "stop at sill"
+        # prohibition that would contradict the ceiling-track mounting description.
+        #
+        # For other curtain types (roman, roller, eyelet): sill-length is a valid
+        # and common choice — keep the explicit stop instruction.
+        pleated_ceiling = (curtain_type == "pleated")
+        if pleated_ceiling and floor_visible:
+            parts.append("The curtain reaches down to the floor.")
+        elif pleated_ceiling:
+            # Floor not visible — describe endpoint neutrally, no prohibition
+            if cm_per_pct:
+                win_cm = round((w.get("height_pct") or 0) * cm_per_pct)
+                parts.append(
+                    f"The curtain ends at the bottom of the window frame "
+                    f"(approximately {win_cm} cm of curtain drop from the ceiling)."
+                )
+            else:
+                parts.append("The curtain ends at the bottom of the window frame.")
         else:
-            parts.append(
-                "The curtain ends at the bottom of the window frame. "
-                "It does NOT extend below the window — stop the curtain at the window sill."
-            )
+            # Non-pleated: sill-length is intentional — keep the stop instruction
+            if cm_per_pct:
+                win_cm = round((w.get("height_pct") or 0) * cm_per_pct)
+                parts.append(
+                    f"The curtain ends at the bottom of the window frame "
+                    f"(approximately {win_cm} cm of curtain). "
+                    f"It does NOT extend below the window — stop the curtain at the window sill."
+                )
+            else:
+                parts.append(
+                    "The curtain ends at the bottom of the window frame. "
+                    "It does NOT extend below the window — stop the curtain at the window sill."
+                )
     elif below_win_pct > 5:
         if cm_per_pct:
             below_cm = round(below_win_pct * cm_per_pct)
@@ -346,6 +391,7 @@ def _build_prompt_from_analysis(
     curtain_type,
     cz_width_cm,
     cz_height_cm,
+    wings=1,         # 1 = single closed panel, 2 = two panels with centre gap
 ):
     """
     Port of the POC's buildPromptFromAnalysis() + generate() prompt assembler.
@@ -441,7 +487,7 @@ def _build_prompt_from_analysis(
     # 8. Curtain zone — full spatial description from geometry
     if curtain_zone_px:
         z_pct   = _normalize_quad(_pixels_to_pct(curtain_zone_px, img_w, img_h))
-        cz_desc = _cz_to_verbal_desc(z_pct, w, r, curtain_type, cz_width_cm, cz_height_cm)
+        cz_desc = _cz_to_verbal_desc(z_pct, w, r, curtain_type, cz_width_cm, cz_height_cm, wings=wings)
         parts.append(cz_desc)
 
     # 9. Natural folds + room preservation
@@ -802,6 +848,7 @@ async def generate(
     room_image:    UploadFile = File(...),
     fabric_id:     str = Form(""),       # look up swatch on disk — no client re-upload
     curtain_type:  str = Form(""),
+    wings:         str = Form("1"),      # "1" = single panel, "2" = split panels
     cz_width_cm:   str = Form(""),
     cz_height_cm:  str = Form(""),
     window_points: str = Form(None),
@@ -876,11 +923,13 @@ async def generate(
                     # Use original image dimensions for coordinate conversion —
                     # window_points and curtain_zone are in natural-image pixel space.
                     orig_w, orig_h = orig_size
+                    wings_int = int(wings) if wings.strip().isdigit() else 1
                     spatial_prompt = _build_prompt_from_analysis(
                         a,
                         orig_w, orig_h,
                         win_pts, cz_pts,
                         curtain_type, cz_width_cm, cz_height_cm,
+                        wings=wings_int,
                     )
                     used_prompt = (
                         f"{PROMPT_BASE}\n\n"

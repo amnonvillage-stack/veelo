@@ -1,0 +1,40 @@
+{
+  "id": "1777899223-oFxoGg",
+  "created_at": 1777899223,
+  "customer_email": "amnonvillage@gmail.com",
+  "curtain_type": "pleated",
+  "fabric": {
+    "id": "grey-polyester-pleated",
+    "name": "grey polyester",
+    "price_per_m": 300.0
+  },
+  "hanger": {
+    "id": "wave_rail",
+    "name": "Wave Rail",
+    "price": 320
+  },
+  "wings": 2,
+  "dimensions_cm": {
+    "width": 140.0,
+    "height": 250.0
+  },
+  "window_points": [
+    {
+      "x": 584.8214285714286,
+      "y": 66.47832167832168
+    },
+    {
+      "x": 594.0214552238806,
+      "y": 507.16779470529474
+    },
+    {
+      "x": 968.9007196162047,
+      "y": 509.4809190809191
+    },
+    {
+      "x": 971.9208422174839,
+      "y": 68.08441558441558
+    }
+  ],
+  "price_estimate": "₪4,735–6,405"
+}

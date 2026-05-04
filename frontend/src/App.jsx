@@ -132,6 +132,7 @@ export default function App() {
     fd.append('room_image',   roomFile)
     fd.append('fabric_id',    chosenFabric.id)
     fd.append('curtain_type', curtainType)
+    fd.append('wings',        String(wings))
     fd.append('cz_width_cm',  wCm || '')
     fd.append('cz_height_cm', hCm || '')
     if (points?.length === 4) {
@@ -159,7 +160,7 @@ export default function App() {
     } finally {
       if (myToken === genTokenRef.current) setGenerating(false)
     }
-  }, [roomFile, curtainType])
+  }, [roomFile, curtainType, wings])
 
   const runGeneration = useCallback(async (chosenFabric, points, wCm, hCm) => {
     if (!roomFile || !chosenFabric) return
@@ -199,6 +200,7 @@ export default function App() {
         fd.append('room_image',   roomFile)
         fd.append('fabric_id',    chosenFabric.id)
         fd.append('curtain_type', curtainType)
+        fd.append('wings',        String(wings))
         fd.append('cz_width_cm',  wCm || '')
         fd.append('cz_height_cm', hCm || '')
         if (points?.length === 4) {
