@@ -1,0 +1,50 @@
+{
+  "nav": {
+    "about": "About",
+    "studio": "Studio",
+    "veelo": "Visualizer",
+    "contact": "Contact"
+  },
+  "hero": {
+    "eyebrow": "Textile & design studio",
+    "headline_1": "A home that feels",
+    "headline_2": "exactly like you.",
+    "lede": "Vicky Israel designs interiors through fabric, light, and thread. Personal consultation, custom drapery, and textiles made to last a generation.",
+    "cta_primary": "Book a consultation",
+    "cta_secondary": "See my work"
+  },
+  "about": {
+    "eyebrow": "The designer",
+    "headline": "Meet Vicky",
+    "body_1": "Twenty years of interior design, textile, and fabric. Every project starts as a conversation — about light, about touch, about how the home should feel at first light.",
+    "body_2": "I work directly with each client, from choosing the fabric to the final hang. Every curtain is sewn to measure, and every home tells its own story.",
+    "signature": "— Vicky Israel",
+    "image_alt": "Vicky Israel selecting fabric at a textile showroom",
+    "image_caption": "In the showroom, choosing fabrics",
+    "tile_fabrics_alt": "Folded textile samples, hand-selected",
+    "tile_styling_alt": "Linen sheers framing a stone bench"
+  },
+  "veelo": {
+    "eyebrow": "VEELO · curtain visualizer",
+    "headline_1": "See the curtain",
+    "headline_2": "in your own room.",
+    "lede": "Photograph your window, choose a fabric, and preview a photo-real rendering of the curtain — before you order.",
+    "cta": "Try the visualizer"
+  },
+  "contact": {
+    "eyebrow": "Get in touch",
+    "headline": "Let's start the conversation",
+    "lede": "Every home starts with a conversation. Send an email or a WhatsApp message and we'll set up an introduction.",
+    "email_cta": "Send an email",
+    "whatsapp_cta": "Message on WhatsApp",
+    "whatsapp_hint": "WhatsApp also welcome"
+  },
+  "footer": {
+    "tagline": "Textile & design studio",
+    "rights": "© 2026 Vicky Israel · All rights reserved"
+  },
+  "lang": {
+    "toggle_to_en": "EN",
+    "toggle_to_he": "עב"
+  }
+}

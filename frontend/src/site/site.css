@@ -1,0 +1,643 @@
+/* ── Vicky Israel marketing site ──────────────────────────────────────────── */
+/* Layered on top of tokens.css. Logical CSS only — no `left`/`right`. */
+
+/* Site shell — natural document flow, scrollable */
+.site-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.site-main {
+  flex: 1;
+}
+
+/* ── Container / section primitives ───────────────────────────────────────── */
+.container {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+
+.container-wide {
+  width: 100%;
+  max-width: var(--content-max-wide);
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+
+@media (min-width: 640px) {
+  .container, .container-wide { padding-inline: 32px; }
+}
+
+@media (min-width: 1024px) {
+  .container, .container-wide { padding-inline: 48px; }
+}
+
+.section {
+  padding-block: var(--section-py-mobile);
+}
+
+@media (min-width: 1024px) {
+  .section { padding-block: var(--section-py-desktop); }
+}
+
+/* Anchor-jump offset — keeps section tops below the sticky header */
+[id] { scroll-margin-block-start: 80px; }
+
+/* ── Typography scale ─────────────────────────────────────────────────────── */
+.display-1 {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(2.25rem, 6vw + 0.5rem, 4.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.display-2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.75rem, 3.2vw + 0.5rem, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+
+.display-3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(1.375rem, 1.8vw + 0.5rem, 2rem);
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.display-italic {
+  font-style: italic;
+  font-weight: 300;
+}
+
+.lede {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: clamp(1rem, 0.5vw + 0.9rem, 1.25rem);
+  line-height: 1.6;
+  color: var(--text-2);
+  max-width: 56ch;
+}
+
+.body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-2);
+  max-width: 64ch;
+}
+
+.eyebrow {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--brand-bronze);
+}
+
+.signature {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.125rem;
+  color: var(--brand-bronze);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border-radius: var(--r-xs);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--duration) var(--ease),
+              color var(--duration) var(--ease),
+              border-color var(--duration) var(--ease);
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--text-on-ink);
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.btn-secondary:hover { background: var(--ink); color: var(--text-on-ink); }
+
+.btn-on-dark {
+  background: var(--accent);
+  color: var(--text-on-ink);
+  border-color: var(--accent);
+}
+.btn-on-dark:hover { background: var(--accent-2); border-color: var(--accent-2); }
+
+.btn-ghost-on-dark {
+  background: transparent;
+  color: var(--text-on-ink);
+  border-color: rgba(250, 246, 240, 0.4);
+}
+.btn-ghost-on-dark:hover { background: rgba(250, 246, 240, 0.08); border-color: var(--text-on-ink); }
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(250, 246, 240, 0.92);
+  backdrop-filter: saturate(140%) blur(8px);
+  -webkit-backdrop-filter: saturate(140%) blur(8px);
+  border-block-end: 1px solid var(--border);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 72px;
+}
+
+.site-header__logo {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.125rem;
+  letter-spacing: 0.06em;
+  color: var(--brand-bronze);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-header__logo img {
+  height: 32px;
+  width: auto;
+  display: block;
+}
+
+.site-header__nav {
+  display: none;
+  align-items: center;
+  gap: 32px;
+}
+
+@media (min-width: 768px) {
+  .site-header__nav { display: flex; }
+}
+
+.site-header__nav a {
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  color: var(--text-2);
+  text-decoration: none;
+  transition: color var(--duration) var(--ease);
+}
+
+.site-header__nav a:hover { color: var(--ink); }
+
+.site-header__right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ── Lang toggle ──────────────────────────────────────────────────────────── */
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--brand-bronze);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: background var(--duration) var(--ease),
+              border-color var(--duration) var(--ease);
+}
+
+.lang-toggle:hover {
+  background: var(--brand-bronze-dim);
+  border-color: var(--brand-bronze);
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  min-height: clamp(560px, 80dvh, 760px);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  /* Dark fallback ensures white headline stays readable until the photo loads
+     (or while assets are still missing during development). */
+  background: var(--surface-ink);
+  isolation: isolate;
+}
+
+@media (min-width: 1024px) {
+  .hero { min-height: 88dvh; }
+}
+
+/* Editorial SVG fallback — sits behind the slideshow as defence-in-depth.
+   If every slide 404s the SVG is what shows. */
+.hero__illustration {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── Hero slideshow ──
+   Three slides z-stacked. Only the .is-active slide is opacity 1; the others
+   sit at 0. Crossfade is achieved purely by transitioning opacity on every
+   slide simultaneously — the outgoing fades out as the incoming fades in. */
+.hero__slideshow {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+}
+
+.hero__slide {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: 0;
+  /* Slow editorial crossfade — 1.6s feels expensive without dragging. */
+  transition: opacity 1600ms ease-in-out;
+  /* Hint compositor — slides only animate opacity + transform on .is-active img. */
+  will-change: opacity;
+}
+
+.hero__slide.is-active {
+  opacity: 1;
+}
+
+.hero__slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Source images are roughly square or near-square; anchor higher so windows
+     + sheers stay in frame on wide viewports. Per-slide override via inline
+     style.objectPosition lives in HeroSlideshow.jsx. */
+  object-position: center 30%;
+}
+
+/* Ken-Burns drift — only the active slide animates. We restart the animation
+   each time .is-active toggles by reusing the keyframe; the transform-origin
+   varies per slide via inline style for visual interest. */
+.hero__slide.is-active img {
+  animation: heroKenBurns 9000ms ease-out forwards;
+}
+
+@keyframes heroKenBurns {
+  from { transform: scale(1.00); }
+  to   { transform: scale(1.06); }
+}
+
+/* Vestibular safety — kill rotation timer (handled in JS) AND the drift. */
+@media (prefers-reduced-motion: reduce) {
+  .hero__slide                      { transition: none; }
+  .hero__slide.is-active img        { animation: none; transform: none; }
+}
+
+/* Bottom-up gradient: photo stays vivid up top, headline gets contrast */
+.hero__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    to top,
+    rgba(26, 22, 16, 0.55) 0%,
+    rgba(26, 22, 16, 0.25) 35%,
+    rgba(26, 22, 16, 0.05) 60%,
+    rgba(26, 22, 16, 0) 100%
+  );
+}
+
+.hero__content {
+  position: relative;
+  padding-block: 80px 64px;
+  color: var(--text-on-ink);
+  max-width: 720px;
+}
+
+.hero__content .display-1,
+.hero__content .display-2 { color: var(--text-on-ink); }
+
+.hero__lede {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: clamp(1rem, 0.5vw + 0.9rem, 1.25rem);
+  line-height: 1.6;
+  color: rgba(250, 246, 240, 0.86);
+  max-width: 52ch;
+  margin-block: 20px 32px;
+}
+
+.hero__eyebrow {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(250, 246, 240, 0.85);
+  margin-block-end: 16px;
+}
+
+.hero__cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ── About (Havenly-style) ────────────────────────────────────────────────── */
+.about {
+  background: var(--surface);
+  border-block-start: 1px solid var(--border);
+  border-block-end: 1px solid var(--border);
+}
+
+/* Centered eyebrow above the body — sets the editorial register. */
+.about__eyebrow {
+  text-align: center;
+  margin-block-end: clamp(40px, 5vw, 72px);
+  color: var(--brand-bronze);
+}
+
+/* Two-column body grid. On wide viewports copy is narrower (5fr) than the
+   collage (7fr) so the photography carries more visual weight, mirroring
+   the reference. CSS Grid columns flip automatically under dir="rtl". */
+.about__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .about__grid {
+    grid-template-columns: 5fr 7fr;
+    gap: 80px;
+  }
+}
+
+.about__copy > * + * { margin-block-start: 18px; }
+.about__copy .display-2 { margin-block-end: 8px; }
+
+.about__copy .body {
+  color: var(--text-2);
+  line-height: 1.7;
+}
+
+/* ── 3-photo collage ──
+   Mobile: portrait spans both columns on top, fabrics + styling sit side-by-side below.
+   Desktop: portrait stretches the full collage height on the left,
+            fabrics + styling stack on the right (each half-height).
+   gap is logical so it stays right under RTL. */
+.about__collage {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "portrait portrait"
+    "fabrics  styling";
+}
+
+@media (min-width: 768px) {
+  .about__collage {
+    grid-template-columns: 7fr 5fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+      "portrait fabrics"
+      "portrait styling";
+    gap: 16px;
+    /* Overall collage shape — slightly wider than tall, room for the portrait
+       to dominate on the left while the right tiles stay roughly square. */
+    aspect-ratio: 12 / 11;
+  }
+}
+
+.about__tile {
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  /* Soft warm-cream fallback if a tile's image 404s — feels like a held space,
+     not a broken state. */
+  background: linear-gradient(135deg, #f5ebd9 0%, #e8d4b5 100%);
+  box-shadow: var(--shadow-sm);
+}
+
+.about__tile picture,
+.about__tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.about__tile img {
+  object-fit: cover;
+}
+
+.about__tile--portrait { grid-area: portrait; }
+.about__tile--fabrics  { grid-area: fabrics; }
+.about__tile--styling  { grid-area: styling; }
+
+/* Mobile: portrait gets a sensible aspect so it doesn't dominate vertically */
+@media (max-width: 767px) {
+  .about__tile--portrait { aspect-ratio: 4 / 3; }
+  .about__tile--fabrics,
+  .about__tile--styling  { aspect-ratio: 1 / 1; }
+}
+
+/* ── Veelo teaser ─────────────────────────────────────────────────────────── */
+.veelo-teaser {
+  background: var(--surface-ink);
+  color: var(--text-on-ink);
+  position: relative;
+  overflow: hidden;
+}
+
+.veelo-teaser__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .veelo-teaser__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 72px;
+  }
+}
+
+.veelo-teaser .eyebrow { color: var(--accent); }
+.veelo-teaser .display-2,
+.veelo-teaser .display-1 { color: var(--text-on-ink); }
+.veelo-teaser__lede {
+  color: rgba(250, 246, 240, 0.78);
+  font-size: clamp(1rem, 0.5vw + 0.9rem, 1.125rem);
+  line-height: 1.65;
+  max-width: 52ch;
+  margin-block: 18px 28px;
+}
+
+.veelo-teaser__media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Phone mockup is portrait — cap height so it doesn't dominate desktop. */
+  max-height: 560px;
+}
+
+.veelo-teaser__phone {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.45));
+}
+
+/* ── Contact ──────────────────────────────────────────────────────────────── */
+.contact {
+  background: var(--bg);
+}
+
+.contact__inner {
+  text-align: center;
+  max-width: 640px;
+  margin-inline: auto;
+}
+
+.contact__cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-block-start: 28px;
+}
+
+.contact__hint {
+  margin-block-start: 16px;
+  font-size: 0.875rem;
+  color: var(--text-3);
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.site-footer {
+  background: var(--surface-2);
+  border-block-start: 1px solid var(--border);
+  padding-block: 40px;
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+
+.site-footer__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .site-footer__inner {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: start;
+  }
+}
+
+.site-footer__brand {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--brand-bronze);
+  letter-spacing: 0.04em;
+}
+
+.site-footer__social {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.site-footer__social a {
+  color: var(--text-2);
+  text-decoration: none;
+  transition: color var(--duration) var(--ease);
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+}
+
+.site-footer__social a:hover {
+  color: var(--brand-bronze);
+  border-color: var(--brand-bronze);
+}
+
+.site-footer__rights {
+  font-size: 0.8125rem;
+  color: var(--text-3);
+}
+
+/* ── RTL-aware forward arrow ──────────────────────────────────────────────── */
+/* Use this for "next/forward" arrows in CTAs so they flip with reading direction. */
+.arrow-forward {
+  display: inline-block;
+}
+
+[dir="rtl"] .arrow-forward {
+  transform: scaleX(-1);
+}
+
+/* ── Focus visibility ─────────────────────────────────────────────────────── */
+/* Keyboard users get a clear ring; mouse users don't see it (browser default). */
+.btn:focus-visible,
+.lang-toggle:focus-visible,
+.site-header__nav a:focus-visible,
+.site-footer__social a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .btn, .lang-toggle, .site-header__nav a, .site-footer__social a {
+    transition: none;
+  }
+}
