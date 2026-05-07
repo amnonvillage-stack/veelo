@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "transport": "none",
+  "error": "No email transport configured. Set RESEND_API_KEY or SMTP_HOST/SMTP_USER/SMTP_PASS in backend/.env. The inquiry was saved to disk; the .eml can be opened in Mail.app.",
+  "recipients": [
+    "amnonvillage@gmail.com"
+  ],
+  "attempted_at": 1777885354
+}

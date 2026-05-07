@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "transport": "resend",
+  "error": "Resend HTTP 403: error code: 1010",
+  "recipients": [
+    "amnonvillage@gmail.com"
+  ],
+  "attempted_at": 1777888226
+}

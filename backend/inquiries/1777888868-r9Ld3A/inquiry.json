@@ -1,0 +1,40 @@
+{
+  "id": "1777888868-r9Ld3A",
+  "created_at": 1777888868,
+  "customer_email": "amnonvillage@gmail.com",
+  "curtain_type": "pleated",
+  "fabric": {
+    "id": "grey-polyester-pleated",
+    "name": "grey polyester",
+    "price_per_m": 300.0
+  },
+  "hanger": {
+    "id": "ceiling_track",
+    "name": "Ceiling Track",
+    "price": 220
+  },
+  "wings": 2,
+  "dimensions_cm": {
+    "width": 150.0,
+    "height": 150.0
+  },
+  "window_points": [
+    {
+      "x": 99.96320199275362,
+      "y": 17.309461467695137
+    },
+    {
+      "x": 686.3960597826087,
+      "y": 106.05052720968084
+    },
+    {
+      "x": 655.0186820652174,
+      "y": 691.9397070271035
+    },
+    {
+      "x": 112.4603713768116,
+      "y": 749.1755714386809
+    }
+  ],
+  "price_estimate": "₪3,056–4,134"
+}

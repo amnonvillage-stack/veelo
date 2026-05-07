@@ -1,0 +1,40 @@
+{
+  "id": "1777889828-VPPnow",
+  "created_at": 1777889828,
+  "customer_email": "65564@gmail.com",
+  "curtain_type": "roman",
+  "fabric": {
+    "id": "ada-ina-natural-roman",
+    "name": "ada-ina-natural",
+    "price_per_m": 120.0
+  },
+  "hanger": {
+    "id": "no_rod",
+    "name": "No Rod (Roller / Roman)",
+    "price": 0
+  },
+  "wings": 1,
+  "dimensions_cm": {
+    "width": 180.0,
+    "height": 120.0
+  },
+  "window_points": [
+    {
+      "x": 127.8287288647343,
+      "y": 101.78760139049825
+    },
+    {
+      "x": 127.70323822463767,
+      "y": 382.3689455388181
+    },
+    {
+      "x": 568.5980902777777,
+      "y": 379.18539976825025
+    },
+    {
+      "x": 568.9349335748792,
+      "y": 105.62502896871379
+    }
+  ],
+  "price_estimate": "₪242–328"
+}

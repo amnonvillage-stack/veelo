@@ -1,5 +1,19 @@
 [
   {
+    "id": "red-roller-roller",
+    "name": "red roller",
+    "collection": "Essentials",
+    "type": "roller",
+    "density": "medium",
+    "price_per_m": 100.0,
+    "currency": "ILS",
+    "swatch_path": "/catalog/swatches/red-roller.webp",
+    "color_hex": "#888888",
+    "description": "",
+    "in_stock": true,
+    "lead_days": 7
+  },
+  {
     "id": "ada-ina-natural-roman",
     "name": "ada-ina-natural",
     "collection": "Garden",

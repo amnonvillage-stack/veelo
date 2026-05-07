@@ -1,0 +1,40 @@
+{
+  "id": "1777833444-AUvQnA",
+  "created_at": 1777833444,
+  "customer_email": "amnonvillage@gmail.com",
+  "curtain_type": "pleated",
+  "fabric": {
+    "id": "grey-polyester-pleated",
+    "name": "grey polyester",
+    "price_per_m": 300.0
+  },
+  "hanger": {
+    "id": "decorative_rod",
+    "name": "Decorative Rod",
+    "price": 180
+  },
+  "wings": 1,
+  "dimensions_cm": {
+    "width": 120.0,
+    "height": 180.0
+  },
+  "window_points": [
+    {
+      "x": 252.5581691576087,
+      "y": 98.44565652789277
+    },
+    {
+      "x": 253.7300441576087,
+      "y": 290.4519454161882
+    },
+    {
+      "x": 419.37839673913044,
+      "y": 292.60466793067536
+    },
+    {
+      "x": 421.728515625,
+      "y": 100.94867412609823
+    }
+  ],
+  "price_estimate": "₪1,530–2,070"
+}
