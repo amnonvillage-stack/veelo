@@ -1,0 +1,40 @@
+{
+  "id": "1777890408-11VbIA",
+  "created_at": 1777890408,
+  "customer_email": "66@rtttre.com",
+  "curtain_type": "roller",
+  "fabric": {
+    "id": "red-roller-roller",
+    "name": "red roller",
+    "price_per_m": 100.0
+  },
+  "hanger": {
+    "id": "no_rod",
+    "name": "No Rod (Roller / Roman)",
+    "price": 0
+  },
+  "wings": 1,
+  "dimensions_cm": {
+    "width": 150.0,
+    "height": 220.0
+  },
+  "window_points": [
+    {
+      "x": 652.0324388586956,
+      "y": 186.16263211728608
+    },
+    {
+      "x": 649.5176630434783,
+      "y": 631.8377940675077
+    },
+    {
+      "x": 993.5526494565217,
+      "y": 638.3352795772247
+    },
+    {
+      "x": 1015.6735733695652,
+      "y": 200.636890555745
+    }
+  ],
+  "price_estimate": "₪281–379"
+}

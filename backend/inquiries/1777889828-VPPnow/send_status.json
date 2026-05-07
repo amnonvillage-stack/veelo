@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "transport": "resend",
+  "error": null,
+  "recipients": [
+    "amnonvillage@gmail.com",
+    "65564@gmail.com"
+  ],
+  "attempted_at": 1777889830
+}
