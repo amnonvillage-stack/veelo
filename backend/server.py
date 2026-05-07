@@ -544,31 +544,15 @@ SWATCHES_DIR = CATALOG_DIR / "swatches"
 SWATCHES_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# ── Startup banner: print which email transport is active ────────────────────
-# Saves the "I sent an inquiry and nothing happened" debugging dance — at
-# server boot you can immediately see whether Resend, SMTP, or disk-only is
-# the active path, plus whether Resend is in sandbox mode.
+# ── Startup banner ───────────────────────────────────────────────────────────
+# Inquiries hand off to the founder via WhatsApp Click-to-Chat, not email.
+# Print the configured handoff so misconfigurations are obvious at boot.
 @app.on_event("startup")
-def _log_email_transport_status():
-    recipient = os.environ.get("VEELO_INQUIRY_TO", "amnonvillage@gmail.com")
-    if os.environ.get("RESEND_API_KEY"):
-        from_addr = os.environ.get("RESEND_FROM", "Veelo <onboarding@resend.dev>")
-        sandbox = "onboarding@resend.dev" in from_addr.lower()
-        mode = "SANDBOX (only delivers to account email)" if sandbox else "production domain"
-        print(f"  ✉️  Email transport: Resend [{mode}]")
-        print(f"      from      : {from_addr}")
-        print(f"      recipient : {recipient}")
-        if sandbox:
-            print(f"      ⚠  Customer CC will be suppressed until you verify a domain.")
-    elif os.environ.get("SMTP_HOST"):
-        host = os.environ.get("SMTP_HOST")
-        port = os.environ.get("SMTP_PORT", "587")
-        user = os.environ.get("SMTP_USER", "(unset)")
-        print(f"  ✉️  Email transport: SMTP {host}:{port} as {user}")
-        print(f"      recipient : {recipient}")
-    else:
-        print("  ⚠️  Email transport: NONE — /inquiry will only write .eml to disk.")
-        print("      Set RESEND_API_KEY (recommended) or SMTP_HOST/USER/PASS in backend/.env.")
+def _log_inquiry_handoff():
+    phone = os.environ.get("VEELO_WHATSAPP_PHONE", "972523770639")
+    base  = os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000")
+    print(f"  💬  Inquiry handoff: WhatsApp → +{phone}")
+    print(f"      Public URLs   : {base}/i/<id>")
 
 @app.get("/")
 def index():
@@ -1026,190 +1010,313 @@ async def generate(
         return JSONResponse({"error": str(e)}, status_code=500)
 
 # ── Inquiry — final submission from Results screen ────────────────────────────
-# Persists the simulation + source + full config to disk AND attempts to send a
-# real email. The .eml is always written as an audit trail (so we can re-send
-# manually or debug deliverability). The send attempt is best-effort: failures
-# are logged but the API still returns 200 — we never want to block a user from
-# receiving confirmation because our SMTP creds are momentarily wrong.
-#
-# Send transport priority:
-#   1. Resend API (RESEND_API_KEY)            ← preferred for prod (PRD §9.6)
-#   2. SMTP (SMTP_HOST/USER/PASS)             ← Gmail-style app passwords
-#   3. None — write .eml only, log a warning  ← dev fallback
+# Persists simulation + source + full config to disk and exposes a public page
+# at /i/{id} that the founder visits via a WhatsApp link the customer sends.
+# No email anywhere — the customer's WhatsApp message IS the inquiry.
 INQUIRIES_DIR = SCRIPT_DIR / "inquiries"
 INQUIRIES_DIR.mkdir(exist_ok=True)
-RECIPIENT_EMAIL = os.environ.get("VEELO_INQUIRY_TO", "amnonvillage@gmail.com")
 
-def _build_inquiry_eml(*, inquiry_id, customer_email, summary_lines,
-                       source_bytes, simulation_bytes,
-                       from_addr=None, cc_customer=True):
-    """Build a multipart RFC-822 .eml string with two image attachments.
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
+WHATSAPP_PHONE  = os.environ.get("VEELO_WHATSAPP_PHONE", "972523770639")
 
-    `from_addr` defaults to the customer's email (display-only) but real SMTP
-    transport will use SMTP_FROM/SMTP_USER as the envelope sender. CC'ing the
-    customer satisfies the Sent.jsx promise of 'A copy is on its way to {email}'.
+# ── Curtain-type Hebrew labels ────────────────────────────────────────────────
+# Used both in the WhatsApp message text the customer sends AND on the
+# /i/{id} public page the founder opens.
+CURTAIN_HE = {
+    "pleated": "וילון מקופל",
+    "eyelet":  "וילון לולאות",
+    "roman":   "וילון רומאי",
+    "roller":  "וילון גלילה",
+}
+
+
+def _build_whatsapp_preview_jpg(sim_bytes: bytes) -> bytes:
+    """Render a 1200×630 JPEG preview for WhatsApp's link-unfurl crawler.
+
+    Why a separate file (not just og:image → simulation.png):
+      • WhatsApp silently drops the preview image if it can't fetch+decode
+        in a few seconds, OR if the file is larger than ~300KB (observed,
+        not documented). Gemini PNGs come back ~0.8–2MB, so they fail.
+      • OG spec wants 1200×630 — wider than typical room photos.
+
+    Letterbox (not crop) onto Veelo ink so the founder sees the *entire*
+    curtain in the chat preview. Chopping off the bottom of a curtain shot
+    would be an own-goal — that's exactly what they want to evaluate.
+
+    Trade-off: writes one more file per inquiry (~80–120KB). Cheap.
     """
-    from email.message import EmailMessage
-    msg = EmailMessage()
-    msg["Subject"] = f"[Veelo] New curtain inquiry — {inquiry_id}"
-    msg["From"]    = from_addr or f"Veelo <{customer_email}>"
-    msg["To"]      = RECIPIENT_EMAIL
-    if cc_customer and customer_email != RECIPIENT_EMAIL:
-        msg["Cc"]  = customer_email
-    msg["Reply-To"] = customer_email
-    body = (
-        "A new Veelo inquiry was submitted.\n\n"
-        f"Inquiry ID : {inquiry_id}\n"
-        f"Customer   : {customer_email}\n\n"
-        + "\n".join(summary_lines)
-        + "\n\nSource image and simulation are attached.\n"
-    )
-    msg.set_content(body)
-    msg.add_attachment(source_bytes, maintype="image", subtype="png",
-                       filename=f"{inquiry_id}-source.png")
-    msg.add_attachment(simulation_bytes, maintype="image", subtype="png",
-                       filename=f"{inquiry_id}-simulation.png")
-    return msg, bytes(msg)
+    from io import BytesIO
+    src = Image.open(BytesIO(sim_bytes)).convert("RGB")
+
+    target_w, target_h = 1200, 630
+    bg = (0x1f, 0x18, 0x12)  # Veelo ink — matches public-page footer
+
+    scale = min(target_w / src.width, target_h / src.height)
+    new_w = max(1, int(src.width * scale))
+    new_h = max(1, int(src.height * scale))
+    resized = src.resize((new_w, new_h), Image.LANCZOS)
+
+    canvas = Image.new("RGB", (target_w, target_h), bg)
+    canvas.paste(resized, ((target_w - new_w) // 2, (target_h - new_h) // 2))
+
+    out = BytesIO()
+    # q78 + progressive lands at ~70–110KB for typical room renders, well
+    # under WhatsApp's ~300KB unfurl cap with headroom for darker scenes.
+    canvas.save(out, format="JPEG", quality=78, optimize=True, progressive=True)
+    return out.getvalue()
 
 
-def _send_via_smtp(msg, recipients):
-    """Send an EmailMessage via SMTP. Returns (ok, error_str)."""
-    host = os.environ.get("SMTP_HOST")
-    port = int(os.environ.get("SMTP_PORT", "587"))
-    user = os.environ.get("SMTP_USER")
-    pwd  = os.environ.get("SMTP_PASS")
-    if not (host and user and pwd):
-        return False, "SMTP not configured (set SMTP_HOST, SMTP_USER, SMTP_PASS)"
-    from_addr = os.environ.get("SMTP_FROM", user)
-    # Override the From header so the envelope sender matches the auth account
-    # (Gmail / most providers reject mismatched envelope-vs-header senders).
-    del msg["From"]
-    msg["From"] = from_addr
+def _public_page_html(*, inquiry_id, payload, base_url):
+    """Render the inquiry as a Hebrew RTL HTML page.
+    The founder lands here from a WhatsApp link; the customer never sees it
+    again after they tap Send. Mobile-first, no JS, no external resources —
+    must work on a flaky connection and inside the WhatsApp in-app browser.
+    """
+    fabric_name = (payload.get("fabric") or {}).get("name") or "—"
+    fabric_price = (payload.get("fabric") or {}).get("price_per_m")
+    hanger_name = (payload.get("hanger") or {}).get("name") or "—"
+    hanger_price = (payload.get("hanger") or {}).get("price") or 0
+    curtain_type = payload.get("curtain_type") or ""
+    curtain_he = CURTAIN_HE.get(curtain_type, curtain_type or "—")
+    width  = (payload.get("dimensions_cm") or {}).get("width")
+    height = (payload.get("dimensions_cm") or {}).get("height")
+    dim_str = f'{int(width)}×{int(height)} ס"מ' if (width and height) else "—"
+    wings = payload.get("wings", "—")
+    price_estimate = payload.get("price_estimate") or "—"
+    customer_name = payload.get("customer_name") or "—"
+    created = time.strftime("%d/%m/%Y %H:%M",
+                            time.localtime(payload.get("created_at", time.time())))
 
-    import smtplib, ssl
-    try:
-        if port == 465:
-            ctx = ssl.create_default_context()
-            with smtplib.SMTP_SSL(host, port, context=ctx, timeout=30) as s:
-                s.login(user, pwd)
-                s.send_message(msg, from_addr=from_addr, to_addrs=recipients)
-        else:
-            with smtplib.SMTP(host, port, timeout=30) as s:
-                s.ehlo()
-                s.starttls(context=ssl.create_default_context())
-                s.ehlo()
-                s.login(user, pwd)
-                s.send_message(msg, from_addr=from_addr, to_addrs=recipients)
-        return True, None
-    except Exception as e:
-        return False, f"SMTP send failed: {e}"
+    fabric_line = fabric_name + (f" (₪{fabric_price}/מטר)" if fabric_price else "")
+    hanger_line = hanger_name + (f" (+₪{hanger_price})"  if hanger_price else "")
+
+    # ── Open Graph metadata (WhatsApp link unfurl) ────────────────────────────
+    # When the customer sends the wa.me link, WhatsApp fetches this page and
+    # uses these tags to render a preview card with a thumbnail. Without them,
+    # the founder just sees a bare blue URL. Two prerequisites to actually
+    # see this in production:
+    #   1. PUBLIC_BASE_URL must be reachable from WhatsApp's crawler (not
+    #      localhost — use a tunnel like cloudflared in dev).
+    #   2. preview.jpg must exist (generated at POST /inquiry time).
+    # html.escape on user-controlled content (customer_name) — without this,
+    # a name like `Avi" /><script>` would break out of the meta attribute.
+    import html as _html
+    og_title       = _html.escape(f"פנייה חדשה מ-{customer_name}", quote=True)
+    og_description = _html.escape(f"{curtain_he} · {dim_str} · {fabric_name}", quote=True)
+    og_image       = f"{base_url}/i/{inquiry_id}/preview.jpg"
+    og_url         = f"{base_url}/i/{inquiry_id}"
+
+    return f"""<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>פנייה {inquiry_id} · Veelo</title>
+
+<meta property="og:type"          content="website">
+<meta property="og:site_name"     content="Veelo">
+<meta property="og:locale"        content="he_IL">
+<meta property="og:title"         content="{og_title}">
+<meta property="og:description"   content="{og_description}">
+<meta property="og:url"           content="{og_url}">
+<meta property="og:image"         content="{og_image}">
+<meta property="og:image:type"    content="image/jpeg">
+<meta property="og:image:width"   content="1200">
+<meta property="og:image:height"  content="630">
+<meta property="og:image:alt"     content="Veelo curtain simulation preview">
+<meta name="twitter:card"         content="summary_large_image">
+<meta name="robots"               content="noindex">
+
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+         background: #f8f4ee; color: #2a1f18; line-height: 1.5;
+         padding: 20px 16px 40px; }}
+  .wrap {{ max-width: 520px; margin: 0 auto; }}
+  .crown {{ font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
+            color: #8a7965; font-weight: 600; }}
+  h1 {{ font-size: 1.4rem; font-weight: 600; margin: 6px 0 4px; color: #1f1812; }}
+  .meta {{ font-size: 0.78rem; color: #8a7965; margin-bottom: 24px; }}
+  .card {{ background: #fff; border: 1px solid #e8dfd2; border-radius: 14px;
+           padding: 16px; margin-bottom: 16px; }}
+  .card h2 {{ font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase;
+              color: #8a7965; font-weight: 700; margin-bottom: 10px; }}
+  .img {{ width: 100%; aspect-ratio: 4/3; object-fit: cover;
+          border-radius: 10px; background: #2a1f18; display: block; }}
+  .img + .img {{ margin-top: 10px; }}
+  .img-cap {{ font-size: 0.72rem; color: #8a7965; margin-top: 6px; }}
+  table {{ width: 100%; font-size: 0.92rem; }}
+  td {{ padding: 7px 0; vertical-align: top; }}
+  td.k {{ color: #8a7965; width: 36%; }}
+  td.v {{ color: #1f1812; font-weight: 500; text-align: left; }}
+  .price {{ background: #fff7ec; border-color: #f3d8ad; }}
+  .price .amount {{ font-size: 1.5rem; font-weight: 600; color: #b87a3f; }}
+  .price .note {{ font-size: 0.74rem; color: #8a7965; margin-top: 6px; font-style: italic; }}
+  .footer {{ font-size: 0.72rem; color: #8a7965; text-align: center;
+             margin-top: 24px; padding-top: 16px; border-top: 1px solid #e8dfd2; }}
+  a.wa {{ display: block; background: #25d366; color: #fff;
+          text-align: center; padding: 14px;
+          border-radius: 999px; font-weight: 600; margin-top: 8px;
+          text-decoration: none; font-size: 0.95rem; }}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crown">פנייה חדשה · Veelo</div>
+  <h1>{customer_name}</h1>
+  <div class="meta">{inquiry_id} · {created}</div>
+
+  <div class="card">
+    <h2>הסימולציה</h2>
+    <img class="img" src="{base_url}/i/{inquiry_id}/simulation.png" alt="סימולציה">
+    <div class="img-cap">תמונת החדר המקורית:</div>
+    <img class="img" src="{base_url}/i/{inquiry_id}/source.png" alt="חדר מקור">
+  </div>
+
+  <div class="card">
+    <h2>תצורה</h2>
+    <table>
+      <tr><td class="k">סוג וילון</td><td class="v">{curtain_he}</td></tr>
+      <tr><td class="k">בד</td><td class="v">{fabric_line}</td></tr>
+      <tr><td class="k">מתלה</td><td class="v">{hanger_line}</td></tr>
+      <tr><td class="k">כנפיים</td><td class="v">{wings}</td></tr>
+      <tr><td class="k">מידות</td><td class="v">{dim_str}</td></tr>
+    </table>
+  </div>
+
+  <div class="card price">
+    <h2>הערכת מחיר (לא מחייבת)</h2>
+    <div class="amount">{price_estimate}</div>
+    <div class="note">המחיר הסופי נקבע לאחר מדידה בבית הלקוח.</div>
+  </div>
+
+  <div class="footer">
+    Veelo · {base_url}<br>
+    מזהה פנייה: {inquiry_id}
+  </div>
+</div>
+</body>
+</html>
+"""
 
 
-def _send_via_resend(*, customer_email, summary_lines, inquiry_id,
-                     source_bytes, simulation_bytes, recipients):
-    """Send via Resend API. Returns (ok, error_str)."""
-    api_key = os.environ.get("RESEND_API_KEY")
-    if not api_key:
-        return False, "Resend not configured (set RESEND_API_KEY)"
-    from_addr = os.environ.get("RESEND_FROM", "Veelo <onboarding@resend.dev>")
-
-    # ── Sandbox guard ─────────────────────────────────────────────────────────
-    # Resend's default sandbox sender (`onboarding@resend.dev`) only delivers to
-    # the email tied to the Resend account. If we leave the customer email in
-    # `to`, Resend rejects the whole request with HTTP 403 and nobody — not even
-    # the founder — gets the inquiry. So in sandbox mode we drop any recipient
-    # other than RECIPIENT_EMAIL. Once a real domain is verified, set
-    # RESEND_FROM to that domain and the full recipient list goes through.
-    sandbox = "onboarding@resend.dev" in from_addr.lower()
-    if sandbox:
-        recipients = [r for r in recipients if r == RECIPIENT_EMAIL]
-        if not recipients:
-            recipients = [RECIPIENT_EMAIL]
-
-    body_text = (
-        f"A new Veelo inquiry was submitted.\n\n"
-        f"Inquiry ID : {inquiry_id}\n"
-        f"Customer   : {customer_email}\n\n"
-        + "\n".join(summary_lines)
-        + "\n\nSource image and simulation are attached.\n"
-    )
-    if sandbox and customer_email != RECIPIENT_EMAIL:
-        body_text += (
-            f"\n[Sandbox mode] Customer CC suppressed — Resend sandbox sender "
-            f"only delivers to {RECIPIENT_EMAIL}. Verify a domain in Resend and "
-            f"set RESEND_FROM to enable customer CC.\n"
+@app.get("/i/{inquiry_id}", response_class=HTMLResponse)
+def public_inquiry_page(inquiry_id: str):
+    """Public page the founder lands on from the customer's WhatsApp link.
+    No auth — relies on the unguessability of the inquiry_id (timestamp +
+    random base64). Acceptable for an MVP; revisit if abuse appears.
+    """
+    out_dir = INQUIRIES_DIR / inquiry_id
+    payload_file = out_dir / "inquiry.json"
+    if not payload_file.exists():
+        return HTMLResponse(
+            "<h1>404 — פנייה לא נמצאה</h1>", status_code=404
         )
+    payload = json.loads(payload_file.read_text("utf-8"))
+    return HTMLResponse(_public_page_html(
+        inquiry_id = inquiry_id,
+        payload    = payload,
+        base_url   = PUBLIC_BASE_URL,
+    ))
 
-    payload = {
-        "from":    from_addr,
-        "to":      recipients,
-        "reply_to": customer_email,
-        "subject": f"[Veelo] New curtain inquiry — {inquiry_id}",
-        "text":    body_text,
-        "attachments": [
-            {"filename": f"{inquiry_id}-source.png",
-             "content":  base64.b64encode(source_bytes).decode()},
-            {"filename": f"{inquiry_id}-simulation.png",
-             "content":  base64.b64encode(simulation_bytes).decode()},
-        ],
-    }
 
-    import urllib.request, urllib.error
-    req = urllib.request.Request(
-        "https://api.resend.com/emails",
-        data    = json.dumps(payload).encode(),
-        method  = "POST",
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type":  "application/json",
-            # Resend is fronted by Cloudflare; the default Python-urllib UA
-            # trips a WAF rule and returns "HTTP 403: error code 1010" before
-            # the request reaches Resend. A real-looking UA bypasses it.
-            "User-Agent":    "Veelo/1.0 (+https://veelo.app)",
-            "Accept":        "application/json",
-        },
+@app.get("/i/{inquiry_id}/{filename}")
+def public_inquiry_image(inquiry_id: str, filename: str):
+    """Serve the source.png / simulation.png attached to an inquiry.
+    Restrict to those two filenames so this can't be turned into a directory
+    walk by a crafted ID; the inquiry dir holds nothing else sensitive but
+    keeping the surface tight is cheap.
+    """
+    if filename not in {"source.png", "simulation.png", "preview.jpg"}:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    f = INQUIRIES_DIR / inquiry_id / filename
+    if not f.exists():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    media = "image/jpeg" if filename.endswith(".jpg") else "image/png"
+    # Long cache: inquiry filenames are immutable per id, and WhatsApp's
+    # crawler benefits from a fast 304 on re-fetch.
+    return FileResponse(
+        f,
+        media_type=media,
+        headers={"Cache-Control": "public, max-age=86400, immutable"},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            if 200 <= resp.status < 300:
-                return True, None
-            return False, f"Resend HTTP {resp.status}: {resp.read().decode(errors='replace')[:200]}"
-    except urllib.error.HTTPError as e:
-        body = e.read().decode(errors="replace")[:200] if e.fp else ""
-        return False, f"Resend HTTP {e.code}: {body}"
-    except Exception as e:
-        return False, f"Resend send failed: {e}"
+
+
+def _build_whatsapp_message(*, inquiry_id, customer_name, payload, public_url):
+    """Compose the Hebrew WhatsApp text the customer's wa.me link pre-fills.
+    Kept short and scannable so the founder can read it on the lock screen
+    without opening the chat.
+    """
+    f = (payload.get("fabric")  or {})
+    h = (payload.get("hanger")  or {})
+    d = (payload.get("dimensions_cm") or {})
+    w, hh = d.get("width"), d.get("height")
+    dim = f'{int(w)}×{int(hh)} ס"מ' if (w and hh) else "—"
+    curtain_he = CURTAIN_HE.get(payload.get("curtain_type") or "",
+                                payload.get("curtain_type") or "—")
+    lines = [
+        f"שלום! עיצבתי וילון ב-Veelo ואשמח לקבל הצעת מחיר.",
+        "",
+        f"שם: {customer_name}",
+        "",
+        "הפרטים:",
+        f"• סוג: {curtain_he}",
+        f"• בד: {f.get('name') or '—'}",
+        f"• מתלה: {h.get('name') or '—'}",
+        f"• כנפיים: {payload.get('wings') or '—'}",
+        f"• מידות: {dim}",
+        f"• הערכה: {payload.get('price_estimate') or '—'}",
+        "",
+        "הסימולציה שלי:",
+        public_url,
+        "",
+        "תודה!",
+    ]
+    return "\n".join(lines)
 
 @app.post("/inquiry")
 async def submit_inquiry(
     source_image:     UploadFile = File(...),
     simulation_image: UploadFile = File(...),
-    customer_email:   str = Form(...),
+    customer_name:    str = Form(...),
     curtain_type:     str = Form(""),
     fabric_id:        str = Form(""),
     hanger_id:        str = Form(""),
     wings:            str = Form("1"),
     width_cm:         str = Form(""),
     height_cm:        str = Form(""),
-    window_points:    str = Form(""),  # JSON string
+    window_points:    str = Form(""),
     price_estimate:   str = Form(""),
 ):
+    """Persist the inquiry and return the WhatsApp handoff URL.
+    Frontend calls this, then immediately opens the returned `whatsapp_url`,
+    which deep-links into WhatsApp with a pre-filled Hebrew message that
+    includes a link to /i/{id} (this server) where the founder sees the
+    full simulation + config.
+    """
     try:
-        # Sanity-check email — same regex as frontend; cheap defence-in-depth
-        if not re.match(r"^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$", customer_email):
-            return JSONResponse({"error": "invalid email"}, status_code=400)
+        name = (customer_name or "").strip()
+        if not (1 <= len(name) <= 80):
+            return JSONResponse({"error": "name must be 1–80 characters"}, status_code=400)
 
         inquiry_id = f"{int(time.time())}-{base64.urlsafe_b64encode(os.urandom(4)).decode().rstrip('=')}"
         out_dir = INQUIRIES_DIR / inquiry_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # ── Persist images ────────────────────────────────────────────────────
         source_bytes = await source_image.read()
         sim_bytes    = await simulation_image.read()
         (out_dir / "source.png").write_bytes(source_bytes)
         (out_dir / "simulation.png").write_bytes(sim_bytes)
 
-        # ── Look up fabric + hanger names so the email is human-readable ──────
+        # Generate now (not lazily on first GET) — WhatsApp's unfurl crawler
+        # gives a few seconds and bails on no-image previews. Pre-baking
+        # avoids a cold-cache race on the first share.
+        try:
+            (out_dir / "preview.jpg").write_bytes(_build_whatsapp_preview_jpg(sim_bytes))
+        except Exception as e:
+            # Non-fatal: the page still works, just no chat-preview thumbnail.
+            print(f"  ⚠️  preview.jpg generation failed for {inquiry_id}: {e}")
+
         catalog = _read_catalog()
         product = next((p for p in catalog if p["id"] == fabric_id), None)
         fabric_name  = product["name"] if product else fabric_id
@@ -1220,11 +1327,10 @@ async def submit_inquiry(
         hanger_name  = hanger["name"]  if hanger else hanger_id
         hanger_price = hanger.get("price") if hanger else None
 
-        # ── Persist structured payload ────────────────────────────────────────
         payload = {
             "id":              inquiry_id,
             "created_at":      int(time.time()),
-            "customer_email":  customer_email,
+            "customer_name":   name,
             "curtain_type":    curtain_type,
             "fabric": {
                 "id": fabric_id, "name": fabric_name, "price_per_m": fabric_price,
@@ -1244,84 +1350,26 @@ async def submit_inquiry(
             json.dumps(payload, ensure_ascii=False, indent=2), "utf-8"
         )
 
-        # ── Build human-readable summary lines ────────────────────────────────
-        summary = [
-            f"Curtain type   : {curtain_type or '—'}",
-            f"Fabric         : {fabric_name}"
-                + (f" (₪{fabric_price}/m)" if fabric_price is not None else ""),
-            f"Hanger         : {hanger_name}"
-                + (f" (+₪{hanger_price})" if hanger_price else ""),
-            f"Wings          : {wings}",
-            f"Dimensions     : "
-                + (f"{width_cm}×{height_cm} cm" if (width_cm and height_cm) else "not provided"),
-            f"Price estimate : {price_estimate or 'not provided'}",
-        ]
-
-        # ── Build EmailMessage + .eml audit copy ──────────────────────────────
-        msg, eml_bytes = _build_inquiry_eml(
-            inquiry_id     = inquiry_id,
-            customer_email = customer_email,
-            summary_lines  = summary,
-            source_bytes   = source_bytes,
-            simulation_bytes = sim_bytes,
+        public_url = f"{PUBLIC_BASE_URL}/i/{inquiry_id}"
+        wa_text = _build_whatsapp_message(
+            inquiry_id    = inquiry_id,
+            customer_name = name,
+            payload       = payload,
+            public_url    = public_url,
         )
-        (out_dir / "inquiry.eml").write_bytes(eml_bytes)
+        # urllib.parse.quote handles UTF-8 (Hebrew + ₪ + emoji-safe). We need
+        # quote, not quote_plus — wa.me expects %20 for spaces, not '+'.
+        from urllib.parse import quote
+        whatsapp_url = f"https://wa.me/{WHATSAPP_PHONE}?text={quote(wa_text)}"
 
-        print(f"  📩  Inquiry {inquiry_id} from {customer_email}")
-        for line in summary: print(f"      {line}")
-        print(f"      → saved to {out_dir}")
-
-        # ── Attempt real send — best-effort, non-blocking for the user ────────
-        # Recipients = founder address + customer (CC'd via header is enough for
-        # most clients but explicitly listing both as RCPT TOs is more reliable).
-        recipients = [RECIPIENT_EMAIL]
-        if customer_email and customer_email != RECIPIENT_EMAIL:
-            recipients.append(customer_email)
-
-        send_ok, send_err = False, None
-        # Try Resend first (production path), fall back to SMTP, then to .eml only.
-        if os.environ.get("RESEND_API_KEY"):
-            send_ok, send_err = _send_via_resend(
-                customer_email = customer_email,
-                summary_lines  = summary,
-                inquiry_id     = inquiry_id,
-                source_bytes   = source_bytes,
-                simulation_bytes = sim_bytes,
-                recipients     = recipients,
-            )
-            transport = "resend"
-        elif os.environ.get("SMTP_HOST"):
-            send_ok, send_err = _send_via_smtp(msg, recipients)
-            transport = "smtp"
-        else:
-            transport = "none"
-            send_err  = ("No email transport configured. "
-                         "Set RESEND_API_KEY or SMTP_HOST/SMTP_USER/SMTP_PASS in backend/.env. "
-                         "The inquiry was saved to disk; the .eml can be opened in Mail.app.")
-
-        if send_ok:
-            print(f"      ✉️  Sent via {transport} → {recipients}")
-        else:
-            print(f"      ⚠️  Email NOT sent ({transport}): {send_err}")
-
-        # Persist send status alongside the inquiry for audit/retry tooling.
-        (out_dir / "send_status.json").write_text(
-            json.dumps({
-                "ok": send_ok,
-                "transport": transport,
-                "error": send_err,
-                "recipients": recipients,
-                "attempted_at": int(time.time()),
-            }, indent=2),
-            "utf-8",
-        )
+        print(f"  💬  Inquiry {inquiry_id} from {name}")
+        print(f"      → {public_url}")
 
         return JSONResponse({
-            "ok": True,
-            "id": inquiry_id,
-            "email_sent": send_ok,
-            "transport":  transport,
-            "email_error": send_err,
+            "ok":           True,
+            "id":           inquiry_id,
+            "public_url":   public_url,
+            "whatsapp_url": whatsapp_url,
         })
 
     except Exception as e:

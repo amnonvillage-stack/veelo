@@ -1,0 +1,40 @@
+{
+  "id": "1777911810-3Du5pA",
+  "created_at": 1777911810,
+  "customer_name": "Lior Test",
+  "curtain_type": "pleated",
+  "fabric": {
+    "id": "ivory_linen",
+    "name": "ivory_linen",
+    "price_per_m": null
+  },
+  "hanger": {
+    "id": "brass_rod",
+    "name": "brass_rod",
+    "price": null
+  },
+  "wings": 2,
+  "dimensions_cm": {
+    "width": 160.0,
+    "height": 240.0
+  },
+  "window_points": [
+    [
+      10,
+      10
+    ],
+    [
+      100,
+      10
+    ],
+    [
+      100,
+      200
+    ],
+    [
+      10,
+      200
+    ]
+  ],
+  "price_estimate": "1450"
+}

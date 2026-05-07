@@ -1,0 +1,40 @@
+{
+  "id": "1777913673-YEx_2g",
+  "created_at": 1777913673,
+  "customer_name": "998",
+  "curtain_type": "eyelet",
+  "fabric": {
+    "id": "2333tester-eyelet",
+    "name": "2333tester",
+    "price_per_m": 200.0
+  },
+  "hanger": {
+    "id": "decorative_rod",
+    "name": "Decorative Rod",
+    "price": 180
+  },
+  "wings": 1,
+  "dimensions_cm": {
+    "width": 120.0,
+    "height": 120.0
+  },
+  "window_points": [
+    {
+      "x": 114.84375,
+      "y": 23.903245192307693
+    },
+    {
+      "x": 668.8852163461538,
+      "y": 90.36959134615385
+    },
+    {
+      "x": 676.3371394230769,
+      "y": 693.2391826923077
+    },
+    {
+      "x": 115.65504807692308,
+      "y": 749.6544471153846
+    }
+  ],
+  "price_estimate": "₪643–869"
+}

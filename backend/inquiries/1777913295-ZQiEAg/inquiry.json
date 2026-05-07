@@ -1,0 +1,40 @@
+{
+  "id": "1777913295-ZQiEAg",
+  "created_at": 1777913295,
+  "customer_name": "778",
+  "curtain_type": "pleated",
+  "fabric": {
+    "id": "grey-polyester-pleated",
+    "name": "grey polyester",
+    "price_per_m": 300.0
+  },
+  "hanger": {
+    "id": "ceiling_track",
+    "name": "Ceiling Track",
+    "price": 220
+  },
+  "wings": 2,
+  "dimensions_cm": {
+    "width": 150.0,
+    "height": 230.0
+  },
+  "window_points": [
+    {
+      "x": 134.31673463371493,
+      "y": 211.1461118640343
+    },
+    {
+      "x": 1371.3346681078956,
+      "y": 160.9098567818029
+    },
+    {
+      "x": 1316.2453937994399,
+      "y": 1768.1220468114723
+    },
+    {
+      "x": 130.30591313319903,
+      "y": 1718.5817369327133
+    }
+  ],
+  "price_estimate": "₪4,586–6,204"
+}

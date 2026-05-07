@@ -1,0 +1,40 @@
+{
+  "id": "1777915050-Ns_iZQ",
+  "created_at": 1777915050,
+  "customer_name": "Nadav Ih",
+  "curtain_type": "roman",
+  "fabric": {
+    "id": "ada-ina-natural-roman",
+    "name": "ada-ina-natural",
+    "price_per_m": 120.0
+  },
+  "hanger": {
+    "id": "ceiling_track",
+    "name": "Ceiling Track",
+    "price": 220
+  },
+  "wings": 1,
+  "dimensions_cm": {
+    "width": 60.0,
+    "height": 60.0
+  },
+  "window_points": [
+    {
+      "x": 3015.656884875847,
+      "y": 412.94773398159424
+    },
+    {
+      "x": 2851.8284424379235,
+      "y": 2303.042542108005
+    },
+    {
+      "x": 825.2099322799097,
+      "y": 2448.6678242750477
+    },
+    {
+      "x": 485.41760722347635,
+      "y": 513.0651154714362
+    }
+  ],
+  "price_estimate": "₪227–308"
+}

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Landing          from './screens/Landing.jsx'
 import ConfigureCurtain from './screens/ConfigureCurtain.jsx'
-import Email            from './screens/Email.jsx'
+import Name             from './screens/Name.jsx'
 import Capture          from './screens/Capture.jsx'
 import MarkWindow       from './screens/MarkWindow.jsx'
 import ResultsV13       from './screens/ResultsV13.jsx'
@@ -9,8 +9,12 @@ import Sent             from './screens/Sent.jsx'
 import Admin            from './screens/Admin.jsx'
 
 // ── App-level shared state ────────────────────────────────────────────────────
-// v1.3 flow:
-//   landing → configure → email → capture → mark → results → sent
+// v1.3 flow (WhatsApp handoff variant):
+//   landing → configure → name → capture → mark → results → sent
+//
+// Why name (not email): inquiries hand off via WhatsApp Click-to-Chat. The
+// customer's phone number is revealed implicitly when they tap Send from their
+// own WhatsApp; we only need a name so the founder sees a human, not an ID.
 //
 // Why orchestration lives here (not in a screen):
 //   The generation pipeline (analyse → generate) is shared between two paths:
@@ -39,8 +43,8 @@ export default function App() {
   const [fabricChoices, setFabricChoices] = useState([])
   const [hangerChoices, setHangerChoices] = useState([])
 
-  // ── Email ──────────────────────────────────────────────────────────────────
-  const [customerEmail, setCustomerEmail] = useState('')
+  // ── Customer name (replaces email — see header comment) ───────────────────
+  const [customerName, setCustomerName] = useState('')
 
   // ── Photo ──────────────────────────────────────────────────────────────────
   const [roomFile, setRoomFile] = useState(null)
@@ -78,7 +82,7 @@ export default function App() {
     if (simulation?.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(simulation.imageUrl)
     setCurtainType(''); setFabric(null); setHanger(null); setWings(2)
     setFabricChoices([]); setHangerChoices([])
-    setCustomerEmail('')
+    setCustomerName('')
     setRoomFile(null); setRoomUrl(null)
     setCurtainPoints([]); setCzWidthCm(''); setCzHeightCm('')
     setAnalysis(null); setSimulation(null); setGenError(null)
@@ -93,7 +97,7 @@ export default function App() {
     setFabric(fabric)
     setHanger(hanger)
     setWings(wings)
-    setScreen('email')
+    setScreen('name')
     // Fetch catalogues for later swap drawers — fire-and-forget
     fetch(`/catalog?type=${encodeURIComponent(curtainType)}`)
       .then(r => r.ok ? r.json() : []).then(setFabricChoices).catch(() => {})
@@ -101,9 +105,9 @@ export default function App() {
       .then(r => r.ok ? r.json() : []).then(setHangerChoices).catch(() => {})
   }, [])
 
-  // ── Step 2: Email ──────────────────────────────────────────────────────────
-  const handleEmailContinue = useCallback((email) => {
-    setCustomerEmail(email)
+  // ── Step 2: Name ───────────────────────────────────────────────────────────
+  const handleNameContinue = useCallback((name) => {
+    setCustomerName(name)
     setScreen('capture')
   }, [])
 
@@ -272,20 +276,24 @@ export default function App() {
     setHanger(newHanger)
   }, [])
 
-  // ── Send inquiry → POST /inquiry → confirmation ────────────────────────────
+  // ── Send inquiry → POST /inquiry → open WhatsApp → confirmation ───────────
+  // The backend persists to disk and returns a wa.me URL pre-filled with a
+  // Hebrew summary plus a link back to /i/{id}. We open that URL in a new tab
+  // (mobile: WhatsApp app, desktop: WhatsApp Web) BEFORE navigating to Sent —
+  // browsers block window.open() outside synchronous click handlers, so it
+  // must happen during the same task as the user's tap.
   const handleSendInquiry = useCallback(async ({ priceEstimate }) => {
     if (!simulation?.imageUrl || !roomFile) {
       throw new Error('Missing simulation or source image')
     }
 
-    // Convert simulation blob URL back to a Blob for upload
     const simResp = await fetch(simulation.imageUrl)
     const simBlob = await simResp.blob()
 
     const fd = new FormData()
     fd.append('source_image',     roomFile)
     fd.append('simulation_image', simBlob, 'simulation.png')
-    fd.append('customer_email',   customerEmail)
+    fd.append('customer_name',    customerName)
     fd.append('curtain_type',     curtainType)
     fd.append('fabric_id',        fabric?.id || '')
     fd.append('hanger_id',        hanger?.id || '')
@@ -301,9 +309,16 @@ export default function App() {
       try { const j = await r.json(); reason = j.error || reason } catch {}
       throw new Error(reason)
     }
+    const data = await r.json()
+    if (data?.whatsapp_url) {
+      // _blank so the customer's existing tab survives the handoff. Some
+      // mobile browsers ignore window.open after an await — if that bites in
+      // testing, switch to assigning location.href.
+      window.open(data.whatsapp_url, '_blank')
+    }
     setScreen('sent')
   }, [
-    simulation, roomFile, customerEmail, curtainType,
+    simulation, roomFile, customerName, curtainType,
     fabric, hanger, wings, czWidthCm, czHeightCm, curtainPoints,
   ])
 
@@ -325,11 +340,11 @@ export default function App() {
         onContinue={handleConfigureContinue}
       />
     ),
-    email: (
-      <Email
-        initialEmail={customerEmail}
+    name: (
+      <Name
+        initialName={customerName}
         onBack={() => goTo('configure')}
-        onContinue={handleEmailContinue}
+        onContinue={handleNameContinue}
       />
     ),
     capture: (
@@ -375,7 +390,7 @@ export default function App() {
     ),
     sent: (
       <Sent
-        email={customerEmail}
+        name={customerName}
         onStartOver={startOver}
       />
     ),

@@ -1,10 +1,19 @@
 import BottomNav from '../components/BottomNav.jsx'
 
-// ── Sent — terminal confirmation screen for the v1.3 flow ─────────────────────
-// User has just clicked "Send" on Results and POST /inquiry succeeded.
-// We show a calm thank-you, what to expect, and one CTA to start over.
+// ── Sent — terminal confirmation screen for the v1.3 WhatsApp flow ────────────
+// User has just clicked "Send" on Results: the backend persisted the inquiry
+// and we opened wa.me in a new tab pre-filled with a Hebrew summary. Their
+// WhatsApp app/web client is now showing the draft message — they still have
+// to tap Send there to actually contact us. This screen exists for the moment
+// they switch back to our tab: we confirm the inquiry was saved on our side
+// and tell them what to expect next.
+//
+// The WhatsApp tab might have been blocked (popup blockers, mobile in-app
+// browsers). We can't reliably detect that, so the copy is written to work
+// either way: even if WhatsApp didn't open, the inquiry is recorded and the
+// founder will see it.
 
-export default function Sent({ email, onStartOver }) {
+export default function Sent({ name, onStartOver }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
@@ -35,24 +44,25 @@ export default function Sent({ email, onStartOver }) {
           color: 'var(--ink)', lineHeight: 1.2,
           marginBottom: 14, letterSpacing: '-0.01em',
         }}>
-          Inquiry sent.
+          {name ? `Thanks, ${name}.` : 'Thanks!'}
         </div>
 
         <div style={{
           fontSize: '0.92rem', color: 'var(--text-2)',
-          lineHeight: 1.6, marginBottom: 8, maxWidth: 320,
+          lineHeight: 1.6, marginBottom: 8, maxWidth: 340,
         }}>
-          We've received your design and will be in touch within 1 business day.
+          Your design is queued. We just opened WhatsApp with a pre-written
+          message — tap <strong style={{ color: 'var(--text-2)' }}>Send</strong> there
+          to finish the handoff.
         </div>
 
-        {email && (
-          <div style={{
-            fontSize: '0.78rem', color: 'var(--text-3)',
-            marginBottom: 36,
-          }}>
-            A copy is on its way to <strong style={{ color: 'var(--text-2)' }}>{email}</strong>.
-          </div>
-        )}
+        <div style={{
+          fontSize: '0.78rem', color: 'var(--text-3)',
+          marginBottom: 36, maxWidth: 320,
+        }}>
+          Didn't see WhatsApp open? Your inquiry is still saved on our side —
+          we'll reach out from <strong style={{ color: 'var(--text-2)' }}>+972 52 377 0639</strong> shortly.
+        </div>
 
         {/* What's next */}
         <div style={{
@@ -77,7 +87,7 @@ export default function Sent({ email, onStartOver }) {
             lineHeight: 1.7,
           }}>
             <li>We review your simulation and dimensions.</li>
-            <li>You'll get a final quote and lead time by email.</li>
+            <li>You'll get a final quote and lead time on WhatsApp.</li>
             <li>If you're happy, we schedule production and install.</li>
           </ol>
         </div>

@@ -1,0 +1,23 @@
+{
+  "id": "1777913016-dwgkjw",
+  "created_at": 1777913016,
+  "customer_name": "Lior",
+  "curtain_type": "pleated",
+  "fabric": {
+    "id": "x",
+    "name": "x",
+    "price_per_m": null
+  },
+  "hanger": {
+    "id": "y",
+    "name": "y",
+    "price": null
+  },
+  "wings": 2,
+  "dimensions_cm": {
+    "width": 160.0,
+    "height": 240.0
+  },
+  "window_points": [],
+  "price_estimate": "1450"
+}

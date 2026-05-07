@@ -1,0 +1,40 @@
+{
+  "id": "1777914646-C2j-Xw",
+  "created_at": 1777914646,
+  "customer_name": "Nadav",
+  "curtain_type": "pleated",
+  "fabric": {
+    "id": "grey-polyester-pleated",
+    "name": "grey polyester",
+    "price_per_m": 300.0
+  },
+  "hanger": {
+    "id": "ceiling_track",
+    "name": "Ceiling Track",
+    "price": 220
+  },
+  "wings": 1,
+  "dimensions_cm": {
+    "width": 60.0,
+    "height": 60.0
+  },
+  "window_points": [
+    {
+      "x": 3382.753950338601,
+      "y": 443.9820802222609
+    },
+    {
+      "x": 536.9932279909707,
+      "y": 586.5735023441571
+    },
+    {
+      "x": 928.3611738148986,
+      "y": 2743.6479944434805
+    },
+    {
+      "x": 2997.4537246049663,
+      "y": 2610.1581524570242
+    }
+  ],
+  "price_estimate": "₪417–564"
+}
