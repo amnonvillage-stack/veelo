@@ -62,6 +62,7 @@ export default defineConfig({
       '/analyze':  'http://localhost:8000',
       '/generate': 'http://localhost:8000',
       '/catalog':  'http://localhost:8000',   // covers /catalog/swatches/* too
+      '/saves':    'http://localhost:8000',
       '/status':   'http://localhost:8000',
     }
   }

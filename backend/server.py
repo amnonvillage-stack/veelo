@@ -14,7 +14,8 @@ Manual setup:
 Server: http://localhost:8000
 """
 
-import base64, io, json, os, re, time, sys
+import base64, io, json, os, re, time, sys, uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -752,6 +753,47 @@ async def analyze(
 @app.get("/status")
 def status():
     return {"model": MODEL_NAME, "ready": True}
+
+# ── Saves — persist a visualisation the user marked as favourite ──────────────
+SAVES_DIR = SCRIPT_DIR / "saves"
+SAVES_DIR.mkdir(parents=True, exist_ok=True)
+
+@app.post("/saves")
+async def save_result(
+    image:        UploadFile = File(...),
+    fabric_name:  str = Form(""),
+    fabric_id:    str = Form(""),
+    curtain_type: str = Form(""),
+):
+    save_id  = uuid.uuid4().hex[:12]
+    save_dir = SAVES_DIR / save_id
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    img_bytes = await image.read()
+    (save_dir / "simulation.png").write_bytes(img_bytes)
+
+    meta = {
+        "id":           save_id,
+        "fabric_name":  fabric_name,
+        "fabric_id":    fabric_id,
+        "curtain_type": curtain_type,
+        "saved_at":     datetime.utcnow().isoformat(),
+    }
+    (save_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False))
+    return {"ok": True, "id": save_id}
+
+@app.get("/saves")
+def list_saves():
+    """Return all saved visualisations (meta only, no image bytes)."""
+    saves = []
+    for d in sorted(SAVES_DIR.iterdir(), reverse=True):
+        meta_file = d / "meta.json"
+        if d.is_dir() and meta_file.exists():
+            try:
+                saves.append(json.loads(meta_file.read_text()))
+            except Exception:
+                pass
+    return saves
 
 @app.post("/generate")
 async def generate(

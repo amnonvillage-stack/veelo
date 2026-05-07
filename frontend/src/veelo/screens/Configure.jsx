@@ -1,46 +1,54 @@
+// ── Configure — Mark Curtain Area ────────────────────────────────────────────
+// Step 2 of the Veelo flow.
+// The user marks 4 corner points on their room photo to define the curtain zone,
+// picks a curtain type, and optionally enters real-world dimensions.
+
 import { useRef, useState, useEffect, useCallback } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import {
+  IconCurtainPleated, IconCurtainEyelet,
+  IconCurtainRoman, IconCurtainRoller,
+  IconCamera,
+} from '../components/icons.jsx'
 
 const CURTAIN_TYPES = [
-  { value: 'pleated',  label: 'Pleated' },
-  { value: 'eyelet',   label: 'Eyelet'  },
-  { value: 'roman',    label: 'Roman'   },
-  { value: 'roller',   label: 'Roller'  },
+  { value: 'pleated', label: 'Pleated', Icon: IconCurtainPleated },
+  { value: 'eyelet',  label: 'Eyelet',  Icon: IconCurtainEyelet  },
+  { value: 'roman',   label: 'Roman',   Icon: IconCurtainRoman   },
+  { value: 'roller',  label: 'Roller',  Icon: IconCurtainRoller  },
 ]
 
-// ── Drawing helpers ────────────────────────────────────────────────────────────
+// ── Canvas helpers ─────────────────────────────────────────────────────────────
 function drawScene(canvas, img, points, dragIdx) {
   const ctx = canvas.getContext('2d')
   const W = canvas.width, H = canvas.height
   ctx.clearRect(0, 0, W, H)
   if (img) ctx.drawImage(img, 0, 0, W, H)
-
   if (points.length === 0) return
 
   const lw = Math.max(2, W / 250)
   const hr = Math.max(10, W / 55)
 
-  // ── Curtain area polygon (amber) ──────────────────────────────────────────
+  // Curtain area polygon
   if (points.length === 4) {
     ctx.save()
     ctx.beginPath()
     ctx.moveTo(points[0].x, points[0].y)
     points.slice(1).forEach(p => ctx.lineTo(p.x, p.y))
     ctx.closePath()
-    ctx.fillStyle = 'rgba(192,112,80,0.10)'
+    ctx.fillStyle = 'rgba(192,112,80,0.09)'
     ctx.fill()
-    ctx.strokeStyle = 'var(--accent, #c07050)'
+    ctx.strokeStyle = '#c07050'
     ctx.lineWidth = lw
     ctx.stroke()
     ctx.restore()
   } else {
-    // Partial path while placing corners
     ctx.save()
     ctx.beginPath()
     ctx.moveTo(points[0].x, points[0].y)
     points.slice(1).forEach(p => ctx.lineTo(p.x, p.y))
-    ctx.strokeStyle = 'var(--accent, #c07050)'
+    ctx.strokeStyle = '#c07050'
     ctx.lineWidth = lw
     ctx.setLineDash([lw * 4, lw * 3])
     ctx.stroke()
@@ -53,14 +61,13 @@ function drawScene(canvas, img, points, dragIdx) {
   points.forEach((p, i) => {
     ctx.beginPath()
     ctx.arc(p.x, p.y, hr + lw * 1.5, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'
+    ctx.fillStyle = 'rgba(0,0,0,0.20)'
     ctx.fill()
 
     ctx.beginPath()
     ctx.arc(p.x, p.y, hr, 0, Math.PI * 2)
     ctx.fillStyle = dragIdx === i ? '#d49070' : '#c07050'
     ctx.fill()
-
     ctx.strokeStyle = '#fff'
     ctx.lineWidth = lw * 1.5
     ctx.stroke()
@@ -86,12 +93,12 @@ function hitPoint(pts, px, py, canvas) {
   const thr = 22 * (canvas.width / r.width)
   for (let i = 0; i < pts.length; i++) {
     const dx = pts[i].x - px, dy = pts[i].y - py
-    if (dx*dx + dy*dy < thr*thr) return i
+    if (dx * dx + dy * dy < thr * thr) return i
   }
   return -1
 }
 
-// ── Component ──────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function Configure({
   roomUrl, roomFile, analysis,
   initialPoints, initialType,
@@ -106,7 +113,7 @@ export default function Configure({
   const [czW, setCzW] = useState('')
   const [czH, setCzH] = useState('')
 
-  // ── Load room image ────────────────────────────────────────────────────────
+  // Load room image
   useEffect(() => {
     if (!roomUrl) return
     const img = new Image()
@@ -121,15 +128,15 @@ export default function Configure({
     img.src = roomUrl
   }, [roomUrl])
 
-  // Pre-suggest corners from analysis (if available and none placed yet)
+  // Pre-suggest corners from analysis
   useEffect(() => {
     if (!analysis || !imgRef.current || initialPoints?.length === 4) return
     const w = analysis.window
     if (!w || w.width_pct == null) return
     const W = imgRef.current.naturalWidth
     const H = imgRef.current.naturalHeight
-    const x0 = W * (w.x_pct       / 100)
-    const y0 = H * (w.top_pct     / 100)
+    const x0 = W * (w.x_pct      / 100)
+    const y0 = H * (w.top_pct    / 100)
     const x1 = x0 + W * (w.width_pct  / 100)
     const y1 = y0 + H * (w.height_pct / 100)
     setPoints([{ x:x0,y:y0 }, { x:x1,y:y0 }, { x:x1,y:y1 }, { x:x0,y:y1 }])
@@ -143,13 +150,11 @@ export default function Configure({
 
   useEffect(() => { redraw() }, [redraw])
 
-  // ── Pointer events ─────────────────────────────────────────────────────────
+  // Pointer events
   const onPointerDown = useCallback(e => {
     const canvas = canvasRef.current
     if (!canvas) return
     const pos = getCanvasPos(canvas, e.clientX, e.clientY)
-
-    // Hit existing handle → drag it
     const hi = hitPoint(points, pos.x, pos.y, canvas)
     if (hi !== -1) {
       dragRef.current = hi
@@ -157,8 +162,6 @@ export default function Configure({
       e.preventDefault()
       return
     }
-
-    // Place next corner (up to 4)
     if (points.length < 4) {
       setPoints(prev => [...prev, pos])
       e.preventDefault()
@@ -180,39 +183,31 @@ export default function Configure({
 
   const onPointerUp = useCallback(() => { dragRef.current = -1 }, [])
 
-  const clearPoints = () => setPoints([])
-
-  // ── Continue ───────────────────────────────────────────────────────────────
-  const handleContinue = () => {
-    onDone(points, curtainType, czW, czH)
-  }
-
   const canContinue = roomUrl != null
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'var(--bg)' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
 
+      {/* ── Step header ── */}
       <TopBar
-        title="Mark curtain area"
+        title="Mark Curtain Area"
         onBack={onBack}
         right={
-          <span style={{ fontSize:'0.72rem', color:'var(--text-3)' }}>Step 2 of 3</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {[0,1,2].map(i => (
+              <div key={i} style={{
+                height: 4, borderRadius: 2,
+                width: i === 1 ? 24 : 14,
+                background: i <= 1 ? 'var(--accent)' : 'var(--surface-3)',
+                transition: 'width var(--duration)',
+              }} />
+            ))}
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginLeft: 4 }}>2 / 3</span>
+          </div>
         }
       />
 
-      {/* Step dots */}
-      <div style={{ display:'flex', gap:6, justifyContent:'center', padding:'0 0 10px' }}>
-        {[0,1,2].map(i => (
-          <div key={i} style={{
-            height: 4, borderRadius: 2,
-            width: i === 0 ? 20 : i === 1 ? 28 : 14,
-            background: i <= 1 ? 'var(--accent)' : 'var(--surface-3)',
-          }} />
-        ))}
-      </div>
-
-      {/* Canvas — guaranteed minimum height so it stays usable on small screens */}
+      {/* ── Canvas viewer ── */}
       <div style={{
         flex: '1 1 0',
         minHeight: '42vh',
@@ -220,17 +215,14 @@ export default function Configure({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--ink)',
+        background: '#1a1610',
         overflow: 'hidden',
       }}>
         <canvas
           ref={canvasRef}
           style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-            touchAction: 'none',
-            cursor: 'crosshair',
-            display: 'block',
+            maxWidth: '100%', maxHeight: '100%',
+            touchAction: 'none', cursor: 'crosshair', display: 'block',
           }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -238,14 +230,14 @@ export default function Configure({
           onPointerCancel={onPointerUp}
         />
 
-        {/* Placement hint */}
+        {/* Placement hint pill */}
         {points.length < 4 && roomUrl && (
           <div style={{
-            position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(26,22,16,.85)', backdropFilter: 'blur(8px)',
+            position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(26,22,16,.88)', backdropFilter: 'blur(8px)',
             border: '1px solid rgba(255,255,255,.12)',
             borderRadius: 'var(--r-full)',
-            padding: '5px 16px',
+            padding: '6px 16px',
             fontSize: '0.7rem', color: '#fff', whiteSpace: 'nowrap',
             pointerEvents: 'none',
           }}>
@@ -254,125 +246,163 @@ export default function Configure({
               : `Corner ${points.length} of 4 placed — ${4 - points.length} to go`}
           </div>
         )}
+
         {!roomUrl && (
-          <div style={{ color:'var(--text-3)', fontSize:'0.85rem' }}>
-            No room photo loaded
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+            color: 'rgba(255,255,255,.3)',
+          }}>
+            <IconCamera size={36} />
+            <span style={{ fontSize: '0.8rem' }}>No room photo loaded</span>
           </div>
         )}
       </div>
 
-      {/* Bottom sheet — capped + internally scrollable so it never crushes the canvas */}
+      {/* ── Bottom sheet ── */}
       <div className="scroll" style={{
         flex: '0 1 auto',
         maxHeight: '55vh',
         background: 'var(--bg)',
         borderTop: '1px solid var(--border)',
-        paddingBottom: 'calc(var(--nav-height) + 4px)',
+        paddingBottom: 'calc(var(--nav-height) + 6px)',
         overflowY: 'auto',
       }}>
-        <div style={{ width:36, height:4, borderRadius:2, background:'var(--border)', margin:'10px auto 14px' }} />
+        {/* Drag handle */}
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)', margin: '10px auto 16px' }} />
 
         {/* Legend + clear */}
-        <div style={{ display:'flex', gap:8, padding:'0 20px 12px', fontSize:'0.68rem', color:'var(--text-2)', alignItems:'center' }}>
-          <span style={{ color:'var(--accent)', fontWeight:600 }}>● Curtain area</span>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 20px 10px' }}>
+          <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.04em' }}>
+            ● Curtain zone
+          </span>
           {points.length > 0 && (
-            <button onClick={clearPoints} style={{ marginLeft:'auto', fontSize:'0.66rem', color:'var(--text-3)', background:'none', border:'none', cursor:'pointer' }}>
+            <button
+              onClick={() => setPoints([])}
+              style={{
+                marginLeft: 'auto',
+                fontSize: '0.66rem', color: 'var(--text-3)',
+                background: 'var(--surface-2)', border: '1px solid var(--border)',
+                borderRadius: 'var(--r-full)', padding: '3px 10px',
+                cursor: 'pointer',
+              }}
+            >
               Clear
             </button>
           )}
         </div>
-        <div style={{ height:1, background:'var(--border)', margin:'0 20px 12px' }} />
 
-        {/* Curtain type */}
-        <div style={{ padding:'0 20px 12px' }}>
-          <div style={{ fontSize:'0.6rem', fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:8 }}>
+        <div style={{ height: 1, background: 'var(--border)', margin: '0 20px 14px' }} />
+
+        {/* Curtain type — 2 × 2 icon card grid */}
+        <div style={{ padding: '0 20px 14px' }}>
+          <div style={{
+            fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
+          }}>
             Curtain type
           </div>
-          <div className="scroll-x" style={{ display:'flex', gap:8 }}>
-            {CURTAIN_TYPES.map(t => (
-              <button
-                key={t.value}
-                onClick={() => setCurtainType(t.value)}
-                style={{
-                  flexShrink: 0,
-                  padding: '6px 16px',
-                  borderRadius: 'var(--r-full)',
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  background: curtainType === t.value ? 'var(--accent-dim)' : 'var(--surface-2)',
-                  border: curtainType === t.value ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
-                  color: curtainType === t.value ? 'var(--accent)' : 'var(--text-2)',
-                  transition: 'all var(--duration)',
-                }}
-              >
-                {t.label}
-              </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {CURTAIN_TYPES.map(({ value, label, Icon }) => {
+              const active = curtainType === value
+              return (
+                <button
+                  key={value}
+                  onClick={() => setCurtainType(value)}
+                  style={{
+                    padding: '12px 10px',
+                    borderRadius: 'var(--r-md)',
+                    background: active ? 'var(--accent-dim)' : 'var(--surface)',
+                    border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                    color: active ? 'var(--accent)' : 'var(--text-2)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                    cursor: 'pointer',
+                    transition: 'all var(--duration)',
+                    boxShadow: active ? '0 0 0 2px var(--accent-glow)' : 'none',
+                  }}
+                >
+                  <Icon size={30} />
+                  <span style={{ fontSize: '0.7rem', fontWeight: active ? 700 : 500, letterSpacing: '0.04em' }}>
+                    {label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: 'var(--border)', margin: '0 20px 14px' }} />
+
+        {/* Dimensions (optional) */}
+        <div style={{ padding: '0 20px 14px' }}>
+          <div style={{
+            fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
+          }}>
+            Actual size{' '}
+            <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-4)' }}>
+              (optional)
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {[
+              { label: 'Width (cm)',      val: czW, set: setCzW, placeholder: 'e.g. 145' },
+              { label: 'Height / drop',   val: czH, set: setCzH, placeholder: 'e.g. 240' },
+            ].map(({ label, val, set, placeholder }) => (
+              <div key={label}>
+                <div style={{
+                  fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.1em',
+                  textTransform: 'uppercase', color: 'var(--brand-bronze)', marginBottom: 5,
+                }}>
+                  {label}
+                </div>
+                <input
+                  type="number"
+                  value={val}
+                  onChange={e => set(e.target.value)}
+                  placeholder={placeholder}
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface)',
+                    border: '1.5px solid var(--border)',
+                    borderRadius: 'var(--r-sm)',
+                    padding: '9px 12px',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    color: 'var(--ink)',
+                    outline: 'none',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                />
+              </div>
             ))}
           </div>
         </div>
-        <div style={{ height:1, background:'var(--border)', margin:'0 20px 12px' }} />
 
-        {/* Dimensions */}
-        <div style={{ padding:'0 20px 12px' }}>
-          <div style={{ fontSize:'0.6rem', fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:8 }}>
-            Actual size <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0 }}>(optional)</span>
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-            <div>
-              <div style={{ fontSize:'0.58rem', fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--accent)', marginBottom:4 }}>Width (cm)</div>
-              <input
-                type="number"
-                value={czW}
-                onChange={e => setCzW(e.target.value)}
-                placeholder="e.g. 145"
-                style={{
-                  width:'100%', background:'var(--surface-2)', border:'1px solid var(--border-2)',
-                  borderRadius:'var(--r-sm)', padding:'8px 12px', fontSize:'0.88rem',
-                  fontWeight:700, color:'var(--ink)', outline:'none',
-                }}
-              />
-            </div>
-            <div>
-              <div style={{ fontSize:'0.58rem', fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--accent)', marginBottom:4 }}>Height / drop (cm)</div>
-              <input
-                type="number"
-                value={czH}
-                onChange={e => setCzH(e.target.value)}
-                placeholder="e.g. 240"
-                style={{
-                  width:'100%', background:'var(--surface-2)', border:'1px solid var(--border-2)',
-                  borderRadius:'var(--r-sm)', padding:'8px 12px', fontSize:'0.88rem',
-                  fontWeight:700, color:'var(--ink)', outline:'none',
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Continue */}
-        <div style={{ padding:'4px 20px 0' }}>
+        {/* Continue CTA */}
+        <div style={{ padding: '4px 20px 0' }}>
           <button
-            onClick={handleContinue}
+            onClick={() => onDone(points, curtainType, czW, czH)}
             disabled={!canContinue}
             style={{
-              width:'100%', padding:'14px', borderRadius:'var(--r-md)',
+              width: '100%', padding: '14px 20px',
+              borderRadius: 'var(--r-md)',
               background: canContinue ? 'var(--ink)' : 'var(--surface-3)',
-              color: canContinue ? 'var(--bg)' : 'var(--text-3)',
-              fontSize:'0.85rem', fontWeight:500,
-              letterSpacing:'0.06em', textTransform:'uppercase',
-              border:'none', cursor: canContinue ? 'pointer' : 'not-allowed',
-              display:'flex', alignItems:'center', justifyContent:'space-between',
-              transition:'background var(--duration)',
+              color: canContinue ? 'var(--text-on-ink)' : 'var(--text-3)',
+              fontSize: '0.85rem', fontWeight: 600,
+              letterSpacing: '0.04em',
+              border: 'none',
+              cursor: canContinue ? 'pointer' : 'not-allowed',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              transition: 'background var(--duration)',
             }}
           >
             <span>Browse Catalogue</span>
-            <span style={{ opacity:.6 }}>→</span>
+            <span style={{ opacity: .55, fontSize: '1.1rem' }}>→</span>
           </button>
         </div>
       </div>
 
-      <BottomNav activeIcon="✏️" activeLabel="Configure" />
+      <BottomNav activeIcon={IconCamera} activeLabel="Configure" />
     </div>
   )
 }
