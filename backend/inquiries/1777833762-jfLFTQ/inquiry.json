@@ -1,0 +1,40 @@
+{
+  "id": "1777833762-jfLFTQ",
+  "created_at": 1777833762,
+  "customer_email": "amnonvillage@gmail.com",
+  "curtain_type": "roman",
+  "fabric": {
+    "id": "ada-ina-natural-roman",
+    "name": "ada-ina-natural",
+    "price_per_m": 120.0
+  },
+  "hanger": {
+    "id": "no_rod",
+    "name": "No Rod (Roller / Roman)",
+    "price": 0
+  },
+  "wings": 1,
+  "dimensions_cm": {
+    "width": 200.0,
+    "height": 120.0
+  },
+  "window_points": [
+    {
+      "x": 831.6,
+      "y": 489.82499999999925
+    },
+    {
+      "x": 831.6,
+      "y": 2266.4249999999993
+    },
+    {
+      "x": 3607.7999999999997,
+      "y": 2312.6249999999986
+    },
+    {
+      "x": 3586.7999999999993,
+      "y": 393.22499999999906
+    }
+  ],
+  "price_estimate": "₪269–364"
+}

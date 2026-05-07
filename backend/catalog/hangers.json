@@ -1,0 +1,46 @@
+[
+  {
+    "id": "decorative_rod",
+    "name": "Decorative Rod",
+    "description": "Wall-mounted metal or wood rod with decorative finials. Visible above the curtain.",
+    "price": 180,
+    "currency": "ILS",
+    "compatible_types": ["pleated", "eyelet"],
+    "image_path": "/catalog/hangers/decorative-rod.jpg",
+    "in_stock": true,
+    "lead_days": 7
+  },
+  {
+    "id": "ceiling_track",
+    "name": "Ceiling Track",
+    "description": "Recessed ceiling-mounted track. Hidden hardware, clean architectural look.",
+    "price": 220,
+    "currency": "ILS",
+    "compatible_types": ["pleated", "roman"],
+    "image_path": "/catalog/hangers/ceiling-track.jpg",
+    "in_stock": true,
+    "lead_days": 10
+  },
+  {
+    "id": "wave_rail",
+    "name": "Wave Rail",
+    "description": "Premium wave-fold rail system for soft, uniform pleats. Wall or ceiling mounted.",
+    "price": 320,
+    "currency": "ILS",
+    "compatible_types": ["pleated"],
+    "image_path": "/catalog/hangers/wave-rail.jpg",
+    "in_stock": true,
+    "lead_days": 14
+  },
+  {
+    "id": "no_rod",
+    "name": "No Rod (Roller / Roman)",
+    "description": "No external hardware. Used for roller blinds and Roman shades with built-in mechanism.",
+    "price": 0,
+    "currency": "ILS",
+    "compatible_types": ["roller", "roman"],
+    "image_path": "/catalog/hangers/no-rod.jpg",
+    "in_stock": true,
+    "lead_days": 0
+  }
+]

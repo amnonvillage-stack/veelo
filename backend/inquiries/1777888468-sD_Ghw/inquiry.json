@@ -1,0 +1,23 @@
+{
+  "id": "1777888468-sD_Ghw",
+  "created_at": 1777888468,
+  "customer_email": "amnonvillage@gmail.com",
+  "curtain_type": "pleated",
+  "fabric": {
+    "id": "ivory_linen",
+    "name": "ivory_linen",
+    "price_per_m": null
+  },
+  "hanger": {
+    "id": "decorative_rod",
+    "name": "Decorative Rod",
+    "price": 180
+  },
+  "wings": 2,
+  "dimensions_cm": {
+    "width": 160.0,
+    "height": 240.0
+  },
+  "window_points": [],
+  "price_estimate": "₪900–1200"
+}
