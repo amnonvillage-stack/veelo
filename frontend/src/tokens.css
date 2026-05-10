@@ -1,6 +1,24 @@
 /* ── Vicky Israel · Atelier Design Tokens ────────────────────────────────── */
 /* Shared by the Vicky Israel marketing site (/) and the Veelo PWA (/veelo). */
 
+/* ── Noto Sans Hebrew (variable font — supports weight 100–900) ───────────── */
+@font-face {
+  font-family: 'Noto Sans Hebrew';
+  src: url('/fonts/NotoSansHebrew-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Hebrew: body and display both use Noto Sans Hebrew.
+   Weight tokens (300 light, 400 regular, 600 semibold, 700 bold) all resolve
+   correctly from the single variable font file.
+   English is untouched — Playfair Display + DM Sans remain as defined above. */
+:lang(he) {
+  --font-body:    'Noto Sans Hebrew', 'Arial Hebrew', sans-serif;
+  --font-display: 'Noto Sans Hebrew', 'Arial Hebrew', sans-serif;
+}
+
 :root {
   /* Surfaces */
   --bg:          #faf6f0;
@@ -37,7 +55,7 @@
   --error:       #c04040;
 
   /* Typography */
-  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-display: 'Playfair Display', Georgia, serif;
   --font-body:    'DM Sans', system-ui, -apple-system, sans-serif;
 
   /* Radius */

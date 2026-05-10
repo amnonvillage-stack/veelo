@@ -8,6 +8,7 @@ import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import Toast, { useToast } from '../components/Toast.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
+import { useT } from '../../i18n/useT.js'
 import {
   IconHeart, IconShare, IconGrid, IconSparkles, IconStar,
 } from '../components/icons.jsx'
@@ -47,6 +48,7 @@ function StepDot({ status }) {
 }
 
 function ProgressSteps({ analysing, generating, ready, total }) {
+  const t = useT()
   const step1 = analysing ? 'active' : 'done'
   const step2 = analysing ? 'pending' : (generating || ready > 0) ? 'active' : 'done'
   const genPct = total > 0 ? (ready / total) * 100 : 0
@@ -54,16 +56,16 @@ function ProgressSteps({ analysing, generating, ready, total }) {
   const rows = [
     {
       status: step1,
-      label: 'Analysing room',
-      sub: analysing ? 'Reading light, perspective & window geometry…' : 'Room understood ✓',
+      label: t('app.results.analysing_room'),
+      sub: analysing ? t('app.results.analysing_sub') : t('app.results.analysed_sub'),
       barPct: null,
     },
     {
       status: step2,
-      label: `Generating ${total} visualisation${total > 1 ? 's' : ''}`,
-      sub: analysing ? 'Waiting for analysis…'
-        : generating ? `${ready} of ${total} complete — ~15–30 s each`
-        : `${ready} of ${total} complete`,
+      label: `${t('app.results.generating_label')} ${total} ${total > 1 ? t('app.results.vis_many') : t('app.results.vis_one')}`,
+      sub: analysing ? t('app.results.waiting_analysis')
+        : generating ? `${ready} ${t('app.results.gen_progress_of')} ${total} ${t('app.results.gen_progress_complete')}`
+        : `${ready} ${t('app.results.gen_progress_of')} ${total} ${t('app.results.gen_done_complete')}`,
       barPct: genPct,
     },
   ]
@@ -80,7 +82,7 @@ function ProgressSteps({ analysing, generating, ready, total }) {
         display: 'flex', flexDirection: 'column', gap: 26,
       }}>
         <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
-          Preparing your visualisation
+          {t('app.results.preparing')}
         </div>
         {rows.map((r, i) => (
           <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
@@ -123,10 +125,11 @@ function ProgressSteps({ analysing, generating, ready, total }) {
 
 // ── Compact gen-progress bar ──────────────────────────────────────────────────
 function GenBar({ ready, total }) {
+  const t = useT()
   return (
     <div style={{ padding: '8px 18px 6px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', flexShrink: 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontSize: '0.64rem', color: 'var(--text-3)' }}>Generating…</span>
+        <span style={{ fontSize: '0.64rem', color: 'var(--text-3)' }}>{t('app.results.gen_bar')}</span>
         <span style={{ fontSize: '0.64rem', fontWeight: 700, color: 'var(--accent)' }}>{ready} / {total}</span>
       </div>
       <div style={{ height: 3, borderRadius: 2, background: 'var(--surface-3)', overflow: 'hidden' }}>
@@ -176,12 +179,13 @@ function PromptPreview({ preview, onContinue, onCancel }) {
 
 // ── Thumbnail cards ───────────────────────────────────────────────────────────
 function SourceThumbnail({ roomUrl, selected, onSelect }) {
+  const t = useT()
   return (
     <ThumbnailCard
       imgSrc={roomUrl}
-      title="Before"
-      subtitle="Original room"
-      badge={{ label: 'ORIGINAL', dark: true }}
+      title={t('app.results.before')}
+      subtitle={t('app.results.original_room')}
+      badge={{ label: t('app.results.badge_original'), dark: true }}
       selected={selected}
       onSelect={onSelect}
     />
@@ -189,12 +193,13 @@ function SourceThumbnail({ roomUrl, selected, onSelect }) {
 }
 
 function CompareThumbnail({ result, rank, selected, onSelect }) {
+  const t = useT()
   return (
     <ThumbnailCard
       imgSrc={result.imageUrl}
       title={result.fabric.name}
       subtitle={`₪${result.fabric.price_per_m} / m`}
-      badge={rank === 0 ? { label: '★ TOP', accent: true } : null}
+      badge={rank === 0 ? { label: t('app.results.badge_top'), accent: true } : null}
       selected={selected}
       onSelect={() => onSelect(result)}
     />
@@ -276,6 +281,7 @@ export default function Results({
   const [compareMode, setCompareMode] = useState(false)
   const toast    = useToast()
   const isDesktop = useDesktop()
+  const t = useT()
 
   const total    = selectedFabrics.length
   const ready    = results.length
@@ -291,7 +297,7 @@ export default function Results({
     if (!active || saving) return
     if (saved.has(activeIdx)) {
       setSaved(prev => { const s = new Set(prev); s.delete(activeIdx); return s })
-      toast.show('Removed from saves')
+      toast.show(t('app.results.toast_removed'))
       return
     }
     setSaving(true)
@@ -305,12 +311,12 @@ export default function Results({
       const res = await fetch('/saves', { method: 'POST', body: fd })
       if (res.ok) {
         setSaved(prev => new Set(prev).add(activeIdx))
-        toast.show('Saved to favourites', <IconHeart size={14} filled />)
+        toast.show(t('app.results.toast_saved'), <IconHeart size={14} filled />)
       } else {
-        toast.show('Could not save — try again')
+        toast.show(t('app.results.toast_save_failed'))
       }
     } catch {
-      toast.show('Network error')
+      toast.show(t('app.results.toast_network_error'))
     } finally {
       setSaving(false)
     }
@@ -324,7 +330,7 @@ export default function Results({
         await navigator.share({ title: active.fabric.name, text: `Curtain simulation: ${active.fabric.name}` })
       } else {
         await navigator.clipboard.writeText(window.location.href)
-        toast.show('Link copied')
+        toast.show(t('app.results.toast_link_copied'))
       }
     } catch {/* user cancelled */ }
   }
@@ -345,19 +351,19 @@ export default function Results({
 
   // ── Status badge ──────────────────────────────────────────────────────────
   const statusBadge = analysing
-    ? <span style={{ fontSize: '0.68rem', color: 'var(--accent)', fontWeight: 600 }}>Analysing…</span>
+    ? <span style={{ fontSize: '0.68rem', color: 'var(--accent)', fontWeight: 600 }}>{t('app.results.analysing_status')}</span>
     : promptPreview
       ? <span style={{ fontSize: '0.68rem', color: 'var(--accent)', fontWeight: 700 }}>⏸ Paused</span>
       : generating
         ? <span style={{ fontSize: '0.68rem', color: 'var(--accent)' }}>{ready}/{total} ready…</span>
-        : <span style={{ fontSize: '0.68rem', color: 'var(--text-3)' }}>{ready} of {total}</span>
+        : <span style={{ fontSize: '0.68rem', color: 'var(--text-3)' }}>{ready} {t('app.results.gen_progress_of')} {total}</span>
 
   // ── Action row ────────────────────────────────────────────────────────────
   const actionRow = (
     <div style={{ display: 'flex', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
       <ActionBtn
         icon={IconHeart}
-        label={saving ? '…' : saved.has(activeIdx) ? 'Saved' : 'Save'}
+        label={saving ? '…' : saved.has(activeIdx) ? t('app.results.saved') : t('app.results.save')}
         onClick={handleSave}
         disabled={isSource || saving}
         active={saved.has(activeIdx)}
@@ -365,14 +371,14 @@ export default function Results({
       />
       <ActionBtn
         icon={IconShare}
-        label="Share"
+        label={t('app.results.share')}
         onClick={handleShare}
         disabled={isSource}
         active={false}
       />
       <ActionBtn
         icon={IconGrid}
-        label="Compare"
+        label={t('app.results.compare')}
         onClick={() => setCompareMode(true)}
         disabled={false}
         active={false}
@@ -406,7 +412,7 @@ export default function Results({
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
     }}>
       <div>
-        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)' }}>Ready to order?</div>
+        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)' }}>{t('app.results.ready_to_order')}</div>
         <div style={{ fontSize: '0.62rem', color: 'var(--text-2)', marginTop: 2 }}>
           Est. {fabricMeters} m · ₪{Math.round(fabricMeters * active.fabric.price_per_m).toLocaleString()}
         </div>
@@ -417,7 +423,7 @@ export default function Results({
         border: 'none', fontSize: '0.76rem', fontWeight: 700,
         cursor: 'pointer', flexShrink: 0,
       }}>
-        Get quote →
+        {t('app.results.get_quote')}
       </button>
     </div>
   )
@@ -449,8 +455,8 @@ export default function Results({
         }}>
           {isSource ? (
             <>
-              <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 1 }}>Before</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 500, color: 'var(--ink)' }}>Original room</div>
+              <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 1 }}>{t('app.results.before')}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 500, color: 'var(--ink)' }}>{t('app.results.original_room')}</div>
             </>
           ) : (
             <>
@@ -495,21 +501,21 @@ export default function Results({
           }}>
             <div>
               <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
-                {isSource ? 'Before' : 'Compare · peek'}
+                {isSource ? t('app.results.before') : t('app.results.compare_peek')}
               </div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 500, color: 'var(--ink)' }}>
-                {isSource ? 'Original room' : active?.fabric.name}
+                {isSource ? t('app.results.original_room') : active?.fabric.name}
               </div>
             </div>
             <button
               onClick={() => setCompareMode(false)}
               style={{ padding: '8px 18px', borderRadius: 'var(--r-full)', background: 'var(--accent)', color: '#fff', fontSize: '0.7rem', fontWeight: 700, border: 'none', cursor: 'pointer' }}
             >
-              Use this
+              {t('app.results.use_this')}
             </button>
           </div>
         ) : (
-          <TopBar title="Results" onBack={onBack} right={statusBadge} />
+          <TopBar title={t('app.results.title')} onBack={onBack} right={statusBadge} />
         )}
 
         {!compareMode && generating && <GenBar ready={ready} total={total} />}
@@ -538,8 +544,8 @@ export default function Results({
               }}>
                 {isSource ? (
                   <>
-                    <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 1 }}>Before</div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 500, color: 'var(--ink)' }}>Original room</div>
+                    <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 1 }}>{t('app.results.before')}</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 500, color: 'var(--ink)' }}>{t('app.results.original_room')}</div>
                   </>
                 ) : (
                   <>
@@ -566,9 +572,9 @@ export default function Results({
             </div>
           </div>
 
-          {/* Right: actions + fabric switcher */}
+          {/* Side panel: actions + fabric switcher */}
           <div style={{
-            borderLeft: '1px solid var(--border)',
+            borderInlineStart: '1px solid var(--border)',
             display: 'flex', flexDirection: 'column',
             background: 'var(--bg)',
             overflow: 'hidden',
@@ -602,7 +608,7 @@ export default function Results({
               overflowY: 'auto',
             }}>
               <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10 }}>
-                {compareMode ? 'Select to compare' : 'Compare options'}
+                {compareMode ? t('app.results.select_to_compare') : t('app.results.compare_options')}
               </div>
               {thumbnailGrid(2)}
 
@@ -618,7 +624,7 @@ export default function Results({
                     color: 'var(--text-2)', fontSize: '0.78rem', fontWeight: 500,
                     cursor: 'pointer',
                   }}>
-                    + Start new room
+                    {t('app.results.start_new_room')}
                   </button>
                 </div>
               )}
@@ -631,7 +637,7 @@ export default function Results({
                   background: 'var(--accent)', color: '#fff',
                   border: 'none', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
                 }}>
-                  Use this →
+                  {t('app.results.use_this')} →
                 </button>
               </div>
             )}
@@ -639,7 +645,7 @@ export default function Results({
         </div>
 
         <Toast visible={toast.visible} message={toast.message} icon={toast.icon} />
-        {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel="Results" />}
+        {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} />}
       </div>
     )
   }
@@ -658,21 +664,21 @@ export default function Results({
         }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
-              {isSource ? 'Before' : 'Compare · peek'}
+              {isSource ? t('app.results.before') : t('app.results.compare_peek')}
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {isSource ? 'Original room' : active?.fabric.name}
+              {isSource ? t('app.results.original_room') : active?.fabric.name}
             </div>
           </div>
           <button
             onClick={() => setCompareMode(false)}
             style={{ padding: '8px 18px', borderRadius: 'var(--r-full)', background: 'var(--accent)', color: '#fff', fontSize: '0.7rem', fontWeight: 700, border: 'none', cursor: 'pointer' }}
           >
-            Use this
+            {t('app.results.use_this')}
           </button>
         </div>
       ) : (
-        <TopBar title="Results" onBack={onBack} right={statusBadge} />
+        <TopBar title={t('app.results.title')} onBack={onBack} right={statusBadge} />
       )}
 
       {/* Loading */}
@@ -689,10 +695,10 @@ export default function Results({
       {!loading && ready === 0 && error && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 }}>
           <div style={{ fontSize: '2rem' }}>⚠️</div>
-          <div style={{ fontSize: '.82rem', color: 'var(--ink)', fontWeight: 600, textAlign: 'center' }}>Generation failed</div>
+          <div style={{ fontSize: '.82rem', color: 'var(--ink)', fontWeight: 600, textAlign: 'center' }}>{t('app.results.gen_failed')}</div>
           <div style={{ fontSize: '.72rem', color: 'var(--text-2)', textAlign: 'center' }}>{error}</div>
           <button onClick={onBack} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 'var(--r-md)', background: 'var(--ink)', color: 'var(--text-on-ink)', border: 'none', fontSize: '.8rem', fontWeight: 600, cursor: 'pointer' }}>
-            ← Try again
+            {t('app.results.try_again')}
           </button>
         </div>
       )}
@@ -715,7 +721,7 @@ export default function Results({
           <div className="scroll" style={{ flex: 1, paddingBottom: compareMode ? 16 : 'calc(var(--nav-height) + 16px)' }}>
             {!compareMode && (
               <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', padding: '12px 18px 8px' }}>
-                Compare options
+                {t('app.results.compare_options')}
               </div>
             )}
             {thumbnailGrid(2)}
@@ -739,7 +745,7 @@ export default function Results({
       )}
 
       <Toast visible={toast.visible} message={toast.message} icon={toast.icon} />
-      {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel="Results" />}
+      {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} />}
     </div>
   )
 }

@@ -7,17 +7,18 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
+import { useT } from '../../i18n/useT.js'
 import {
   IconCurtainPleated, IconCurtainEyelet,
   IconCurtainRoman, IconCurtainRoller,
   IconCamera,
 } from '../components/icons.jsx'
 
-const CURTAIN_TYPES = [
-  { value: 'pleated', label: 'Pleated', Icon: IconCurtainPleated },
-  { value: 'eyelet',  label: 'Eyelet',  Icon: IconCurtainEyelet  },
-  { value: 'roman',   label: 'Roman',   Icon: IconCurtainRoman   },
-  { value: 'roller',  label: 'Roller',  Icon: IconCurtainRoller  },
+const CURTAIN_TYPE_DEFS = [
+  { value: 'pleated', key: 'pleated', Icon: IconCurtainPleated },
+  { value: 'eyelet',  key: 'eyelet',  Icon: IconCurtainEyelet  },
+  { value: 'roman',   key: 'roman',   Icon: IconCurtainRoman   },
+  { value: 'roller',  key: 'roller',  Icon: IconCurtainRoller  },
 ]
 
 // ── Canvas helpers ─────────────────────────────────────────────────────────────
@@ -109,6 +110,12 @@ export default function Configure({
   const imgRef    = useRef(null)
   const dragRef   = useRef(-1)
   const isDesktop = useDesktop()
+  const t = useT()
+
+  const CURTAIN_TYPES = CURTAIN_TYPE_DEFS.map(d => ({
+    ...d,
+    label: t(`app.configure.${d.key}`),
+  }))
 
   const [points,      setPoints]      = useState(initialPoints || [])
   const [curtainType, setCurtainType] = useState(initialType   || '')
@@ -213,7 +220,7 @@ export default function Configure({
           transition: 'width var(--duration)',
         }} />
       ))}
-      <span style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginLeft: 4 }}>2 / 3</span>
+      <span style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginLeft: 4 }}>{t('app.configure.step')}</span>
     </div>
   )
 
@@ -234,7 +241,7 @@ export default function Configure({
       {/* Legend + clear */}
       <div style={{ display: 'flex', alignItems: 'center', padding: isDesktop ? '16px 24px 10px' : '0 20px 10px' }}>
         <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.04em' }}>
-          ● Curtain zone
+          ● {t('app.configure.curtain_zone')}
         </span>
         {points.length > 0 && (
           <button
@@ -247,7 +254,7 @@ export default function Configure({
               cursor: 'pointer',
             }}
           >
-            Clear
+            {t('app.configure.clear')}
           </button>
         )}
       </div>
@@ -260,7 +267,7 @@ export default function Configure({
           fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em',
           textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
         }}>
-          Curtain type
+          {t('app.configure.curtain_type')}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {CURTAIN_TYPES.map(({ value, label, Icon }) => {
@@ -299,15 +306,15 @@ export default function Configure({
           fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em',
           textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
         }}>
-          Actual size{' '}
+          {t('app.configure.actual_size')}{' '}
           <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-4)' }}>
-            (optional)
+            ({t('app.configure.optional')})
           </span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {[
-            { label: 'Width (cm)',      val: czW, set: setCzW, placeholder: 'e.g. 145' },
-            { label: 'Height / drop',   val: czH, set: setCzH, placeholder: 'e.g. 240' },
+            { label: t('app.configure.width_cm'),    val: czW, set: setCzW, placeholder: t('app.configure.width_ph') },
+            { label: t('app.configure.height_drop'), val: czH, set: setCzH, placeholder: t('app.configure.height_ph') },
           ].map(({ label, val, set, placeholder }) => (
             <div key={label}>
               <div style={{
@@ -357,7 +364,7 @@ export default function Configure({
             transition: 'background var(--duration)',
           }}
         >
-          <span>Browse Catalogue</span>
+          <span>{t('app.configure.browse')}</span>
           <span style={{ opacity: .55, fontSize: '1.1rem' }}>→</span>
         </button>
       </div>
@@ -367,7 +374,7 @@ export default function Configure({
   if (isDesktop) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
-        <TopBar title="Mark Curtain Area" onBack={onBack} right={stepIndicator} />
+        <TopBar title={t('app.configure.title')} onBack={onBack} right={stepIndicator} />
 
         {/* ── Desktop: canvas left, controls right ── */}
         <div style={{
@@ -397,8 +404,8 @@ export default function Configure({
                 pointerEvents: 'none',
               }}>
                 {points.length === 0
-                  ? 'Click the 4 corners of the curtain area'
-                  : `Corner ${points.length} of 4 placed — ${4 - points.length} to go`}
+                  ? t('app.configure.click_corners')
+                  : `${t('app.configure.corner_placed')} ${points.length} ${t('app.configure.corner_of')} ${4 - points.length} ${t('app.configure.corner_to_go')}`}
               </div>
             )}
 
@@ -408,14 +415,14 @@ export default function Configure({
                 color: 'rgba(255,255,255,.3)',
               }}>
                 <IconCamera size={36} />
-                <span style={{ fontSize: '0.8rem' }}>No room photo loaded</span>
+                <span style={{ fontSize: '0.8rem' }}>{t('app.configure.no_photo')}</span>
               </div>
             )}
           </div>
 
           {/* Controls panel */}
           <div style={{
-            borderLeft: '1px solid var(--border)',
+            borderInlineStart: '1px solid var(--border)',
             background: 'var(--bg)',
             overflowY: 'auto',
             paddingBottom: 'calc(var(--nav-height) + 6px)',
@@ -424,7 +431,7 @@ export default function Configure({
           </div>
         </div>
 
-        <BottomNav activeIcon={IconCamera} activeLabel="Configure" />
+        <BottomNav activeIcon={IconCamera} activeLabel={t('app.configure.nav_label')} />
       </div>
     )
   }
@@ -458,8 +465,8 @@ export default function Configure({
             pointerEvents: 'none',
           }}>
             {points.length === 0
-              ? 'Tap the 4 corners of the curtain area'
-              : `Corner ${points.length} of 4 placed — ${4 - points.length} to go`}
+              ? t('app.configure.tap_corners')
+              : `${t('app.configure.corner_placed')} ${points.length} ${t('app.configure.corner_of')} ${4 - points.length} ${t('app.configure.corner_to_go')}`}
           </div>
         )}
 

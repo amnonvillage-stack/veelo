@@ -331,16 +331,19 @@
   .hero__slide.is-active img        { animation: none; transform: none; }
 }
 
-/* Bottom-up gradient: photo stays vivid up top, headline gets contrast */
+/* Bottom-up gradient: photo stays vivid up top, headline gets contrast.
+   Deeper scrim (0 → 75%) extended to 65% height so even the eyebrow —
+   the topmost text element — sits on a dark enough wash. */
 .hero__overlay {
   position: absolute;
   inset: 0;
   z-index: -1;
   background: linear-gradient(
     to top,
-    rgba(26, 22, 16, 0.55) 0%,
-    rgba(26, 22, 16, 0.25) 35%,
-    rgba(26, 22, 16, 0.05) 60%,
+    rgba(26, 22, 16, 0.75) 0%,
+    rgba(26, 22, 16, 0.60) 20%,
+    rgba(26, 22, 16, 0.38) 45%,
+    rgba(26, 22, 16, 0.10) 65%,
     rgba(26, 22, 16, 0) 100%
   );
 }
@@ -353,16 +356,20 @@
 }
 
 .hero__content .display-1,
-.hero__content .display-2 { color: var(--text-on-ink); }
+.hero__content .display-2 {
+  color: var(--text-on-ink);
+  text-shadow: 0 2px 24px rgba(26, 22, 16, 0.45);
+}
 
 .hero__lede {
   font-family: var(--font-body);
   font-weight: 400;
   font-size: clamp(1rem, 0.5vw + 0.9rem, 1.25rem);
   line-height: 1.6;
-  color: rgba(250, 246, 240, 0.86);
+  color: rgba(250, 246, 240, 0.92);
   max-width: 52ch;
   margin-block: 20px 32px;
+  text-shadow: 0 1px 8px rgba(26, 22, 16, 0.35);
 }
 
 .hero__eyebrow {
@@ -371,8 +378,9 @@
   font-size: 0.75rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(250, 246, 240, 0.85);
+  color: rgba(250, 246, 240, 0.95);
   margin-block-end: 16px;
+  text-shadow: 0 1px 8px rgba(26, 22, 16, 0.50);
 }
 
 .hero__cta-row {

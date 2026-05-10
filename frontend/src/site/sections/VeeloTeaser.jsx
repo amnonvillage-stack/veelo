@@ -35,7 +35,7 @@ export default function VeeloTeaser() {
           <div className="veelo-teaser__media">
             <img
               src="/assets/sitePhotos/main_lay.jpg"
-              alt="Veelo curtain visualiser app on a phone"
+              alt="Curtain visualiser preview on a window photo"
               className="veelo-teaser__phone"
               loading="lazy"
               decoding="async"

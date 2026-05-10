@@ -6,23 +6,11 @@ import { useState, useEffect } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
+import { useT } from '../../i18n/useT.js'
 import { IconSearch, IconX, IconCheck, IconScissors, IconSparkles } from '../components/icons.jsx'
 
-const DENSITY_LABELS = {
-  sheer:    'Sheer',
-  light:    'Light',
-  medium:   'Medium',
-  heavy:    'Heavy',
-  blackout: 'Blackout',
-}
-
-const TYPE_FILTERS = [
-  { value: '',         label: 'All'      },
-  { value: 'pleated',  label: 'Pleated'  },
-  { value: 'eyelet',   label: 'Eyelet'   },
-  { value: 'roman',    label: 'Roman'    },
-  { value: 'roller',   label: 'Roller'   },
-]
+const DENSITY_KEYS = ['sheer', 'light', 'medium', 'heavy', 'blackout']
+const TYPE_FILTER_VALUES = ['', 'pleated', 'eyelet', 'roman', 'roller']
 
 // CSS gradient fallbacks when a swatch image is absent
 const SWATCH_COLORS = {
@@ -80,6 +68,7 @@ function SkeletonCard() {
 // ── Fabric card ───────────────────────────────────────────────────────────────
 function FabricCard({ product, selected, onToggle }) {
   const [imgError, setImgError] = useState(false)
+  const t = useT()
 
   return (
     <div
@@ -131,7 +120,7 @@ function FabricCard({ product, selected, onToggle }) {
             background: 'rgba(26,22,16,.72)', borderRadius: 'var(--r-xs)',
             padding: '3px 7px',
           }}>
-            Out of stock
+            {t('app.catalog.out_of_stock')}
           </div>
         )}
       </div>
@@ -165,7 +154,7 @@ function FabricCard({ product, selected, onToggle }) {
             background: 'var(--surface-2)', padding: '2px 7px',
             borderRadius: 'var(--r-full)',
           }}>
-            {DENSITY_LABELS[product.density]}
+            {t(`app.catalog.${product.density}`)}
           </span>
         </div>
       </div>
@@ -181,6 +170,12 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
   const [search,   setSearch]   = useState('')
   const [selected, setSelected] = useState([])
   const isDesktop = useDesktop()
+  const t = useT()
+
+  const TYPE_FILTERS = TYPE_FILTER_VALUES.map(v => ({
+    value: v,
+    label: v === '' ? t('app.catalog.filter_all') : t(`app.catalog.${v}`),
+  }))
 
   useEffect(() => {
     fetch('/catalog')
@@ -225,7 +220,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
       <input
         value={search}
         onChange={e => setSearch(e.target.value)}
-        placeholder="Search fabrics…"
+        placeholder={t('app.catalog.search_ph')}
         style={{
           flex: 1, background: 'none', border: 'none', outline: 'none',
           fontSize: '0.85rem', color: 'var(--ink)',
@@ -251,12 +246,12 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
       gap: 7,
       padding: vertical ? '4px 0' : undefined,
     }}>
-      {TYPE_FILTERS.map(t => {
-        const active = filter === t.value
+      {TYPE_FILTERS.map(tf => {
+        const active = filter === tf.value
         return (
           <button
-            key={t.value}
-            onClick={() => setFilter(t.value)}
+            key={tf.value}
+            onClick={() => setFilter(tf.value)}
             style={{
               flexShrink: 0,
               padding: vertical ? '8px 12px' : '5px 14px',
@@ -271,7 +266,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
               textAlign: vertical ? 'left' : 'center',
             }}
           >
-            {t.label}
+            {tf.label}
           </button>
         )
       })}
@@ -305,7 +300,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
             cursor: 'pointer',
           }}
         >
-          <span>Visualise {selected.length} {selected.length === 1 ? 'fabric' : 'fabrics'}</span>
+          <span>{t('app.catalog.visualise')} {selected.length} {selected.length === 1 ? t('app.catalog.vis_one') : t('app.catalog.vis_many')}</span>
           <div style={{
             width: 32, height: 32, borderRadius: '50%',
             background: 'var(--accent)',
@@ -328,7 +323,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
         `}</style>
 
         <TopBar
-          title="Choose Fabric"
+          title={t('app.catalog.title')}
           onBack={onBack}
           right={
             <span style={{
@@ -353,7 +348,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
         }}>
           {/* Sidebar */}
           <div className="scroll" style={{
-            borderRight: '1px solid var(--border)',
+            borderInlineEnd: '1px solid var(--border)',
             padding: '20px 16px',
             paddingBottom: 'calc(var(--nav-height) + 16px)',
             overflowY: 'auto',
@@ -366,7 +361,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
                 fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.14em',
                 textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
               }}>
-                Type
+                {t('app.catalog.type_label')}
               </div>
               {filterChips(true)}
             </div>
@@ -377,7 +372,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
                   fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.14em',
                   textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
                 }}>
-                  Selected ({selected.length}/4)
+                  {t('app.catalog.selected_label')} ({selected.length}/4)
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {selected.map(p => (
@@ -415,7 +410,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
                     cursor: 'pointer',
                   }}
                 >
-                  <span>Visualise {selected.length}</span>
+                  <span>{t('app.catalog.visualise')} {selected.length}</span>
                   <IconSparkles size={16} strokeWidth={1.5} />
                 </button>
               </div>
@@ -433,8 +428,8 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
                 <div style={{ color: 'var(--text-3)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
                   <IconScissors size={36} />
                 </div>
-                <div style={{ fontSize: '.85rem', fontWeight: 600, color: 'var(--text-2)' }}>No fabrics found</div>
-                <div style={{ fontSize: '.75rem', color: 'var(--text-3)', marginTop: 4 }}>Try a different search or filter</div>
+                <div style={{ fontSize: '.85rem', fontWeight: 600, color: 'var(--text-2)' }}>{t('app.catalog.no_fabrics')}</div>
+                <div style={{ fontSize: '.75rem', color: 'var(--text-3)', marginTop: 4 }}>{t('app.catalog.no_fabrics_hint')}</div>
               </div>
             )}
 
@@ -454,7 +449,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
           </div>
         </div>
 
-        <BottomNav activeIcon={IconScissors} activeLabel="Fabrics" />
+        <BottomNav activeIcon={IconScissors} activeLabel={t('app.catalog.nav_label')} />
       </div>
     )
   }
@@ -467,7 +462,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
       `}</style>
 
       <TopBar
-        title="Choose Fabric"
+        title={t('app.catalog.title')}
         onBack={onBack}
         right={
           <span style={{

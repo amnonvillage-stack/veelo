@@ -4,9 +4,6 @@ import LangToggle from './LangToggle.jsx'
 
 // SiteHeader — sticky, translucent over the hero, hardens on scroll naturally
 // because the body scrolls under it.
-//
-// Logo: text-only fallback for now. When the SVG wordmark lands, swap to an
-// <img src="/logo/vicky-israel-wordmark.svg"> inside the <Link>.
 
 export default function SiteHeader() {
   const t = useT()
@@ -15,8 +12,11 @@ export default function SiteHeader() {
     <header className="site-header">
       <div className="container site-header__inner">
         <Link to="/" className="site-header__logo" aria-label="Vicky Israel — home">
-          {/* TODO(asset): replace with <img> once SVG/2x PNG lands at /assets/site/logo/ */}
-          VICKY&nbsp;ISRAEL
+          <img
+            src="/logo.png"
+            alt="Vicky Israel · Textile & Design Studio"
+            style={{ height: 40, width: 'auto', display: 'block' }}
+          />
         </Link>
 
         <nav className="site-header__nav" aria-label="Primary">

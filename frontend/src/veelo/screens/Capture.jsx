@@ -5,26 +5,28 @@
 import { useRef, useState, useEffect } from 'react'
 import BottomNav from '../components/BottomNav.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
+import { useT } from '../../i18n/useT.js'
 import {
   IconCamera, IconImage, IconSettings, IconLightbulb,
   IconUpload, IconHome, IconX, IconTrash,
 } from '../components/icons.jsx'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function formatRelative(ts) {
+function formatRelative(ts, t) {
   const diff = Math.floor(Date.now() / 1000) - ts
-  if (diff < 60)        return 'just now'
-  if (diff < 3600)      return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400)     return `${Math.floor(diff / 3600)}h ago`
-  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}d ago`
+  if (diff < 60)        return t('app.capture.just_now')
+  if (diff < 3600)      return `${Math.floor(diff / 60)}${t('app.capture.min_ago')}`
+  if (diff < 86400)     return `${Math.floor(diff / 3600)}${t('app.capture.hour_ago')}`
+  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}${t('app.capture.day_ago')}`
   return new Date(ts * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 // ── Saved image card ──────────────────────────────────────────────────────────
 function SaveCard({ save, onClick, onDelete }) {
+  const t = useT()
   const [hovered, setHovered] = useState(false)
-  const label = save.fabric_name || 'Saved'
-  const sub   = [save.curtain_type, formatRelative(save.created_at)].filter(Boolean).join(' · ')
+  const label = save.fabric_name || t('app.capture.saved_label')
+  const sub   = [save.curtain_type, formatRelative(save.created_at, t)].filter(Boolean).join(' · ')
 
   const handleDelete = (e) => {
     e.stopPropagation()
@@ -105,6 +107,7 @@ function SkeletonCard() {
 
 // ── Full-screen preview overlay ───────────────────────────────────────────────
 function PreviewOverlay({ save, onClose, onDelete }) {
+  const t = useT()
   if (!save) return null
 
   const handleDelete = () => {
@@ -152,7 +155,7 @@ function PreviewOverlay({ save, onClose, onDelete }) {
             display: 'flex', alignItems: 'center', gap: 7,
           }}
         >
-          <IconTrash size={14} strokeWidth={2} /> Delete
+          <IconTrash size={14} strokeWidth={2} /> {t('app.capture.delete')}
         </button>
         <button
           onClick={onClose}
@@ -164,7 +167,7 @@ function PreviewOverlay({ save, onClose, onDelete }) {
             display: 'flex', alignItems: 'center', gap: 8,
           }}
         >
-          <IconX size={14} /> Close
+          <IconX size={14} /> {t('app.capture.close')}
         </button>
       </div>
     </div>
@@ -173,6 +176,7 @@ function PreviewOverlay({ save, onClose, onDelete }) {
 
 // ── Upload zone ───────────────────────────────────────────────────────────────
 function UploadZone({ dragOver, onDragOver, onDragLeave, onDrop, onClick, onCamera, onGallery, isDesktop }) {
+  const t = useT()
   return (
     <div
       style={{
@@ -217,10 +221,10 @@ function UploadZone({ dragOver, onDragOver, onDragLeave, onDrop, onClick, onCame
             color: dragOver ? 'var(--accent)' : 'var(--ink)',
             transition: 'color var(--duration)',
           }}>
-            {dragOver ? 'Drop to upload' : 'Snap or upload a room'}
+            {dragOver ? t('app.capture.drop_to_upload') : t('app.capture.snap_or_upload')}
           </div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 4 }}>
-            {isDesktop ? 'Drag a photo here, or use the buttons below' : 'Point your camera at the window'}
+            {isDesktop ? t('app.capture.drag_hint_desktop') : t('app.capture.drag_hint_mobile')}
           </div>
         </div>
       </div>
@@ -240,7 +244,7 @@ function UploadZone({ dragOver, onDragOver, onDragLeave, onDrop, onClick, onCame
           onClick={e => { e.stopPropagation(); onCamera() }}
         >
           <IconCamera size={17} />
-          Camera
+          {t('app.capture.camera')}
         </button>
         <button
           style={{
@@ -254,7 +258,7 @@ function UploadZone({ dragOver, onDragOver, onDragLeave, onDrop, onClick, onCame
           onClick={e => { e.stopPropagation(); onGallery() }}
         >
           <IconImage size={17} />
-          Gallery
+          {t('app.capture.gallery')}
         </button>
       </div>
     </div>
@@ -263,6 +267,7 @@ function UploadZone({ dragOver, onDragOver, onDragLeave, onDrop, onClick, onCame
 
 // ── Tip card ──────────────────────────────────────────────────────────────────
 function TipCard() {
+  const t = useT()
   return (
     <div style={{
       background: 'var(--accent-dim)',
@@ -275,8 +280,8 @@ function TipCard() {
         <IconLightbulb size={18} />
       </span>
       <div style={{ fontSize: '0.72rem', color: 'var(--text-2)', lineHeight: 1.65 }}>
-        <strong style={{ color: 'var(--ink)' }}>Best results: </strong>
-        Shoot straight so the entire window frame is visible, preferably ceiling to floor, in natural daylight. Avoid backlighting.
+        <strong style={{ color: 'var(--ink)' }}>{t('app.capture.tip_title')} </strong>
+        {t('app.capture.tip_body')}
       </div>
     </div>
   )
@@ -284,6 +289,7 @@ function TipCard() {
 
 // ── Saved section ─────────────────────────────────────────────────────────────
 function SavedSection({ saves, savesState, onPreview, onDelete, onNew, cols }) {
+  const t = useT()
   const showRecent = savesState === 'loading' || saves.length > 0
   if (!showRecent) return null
 
@@ -294,7 +300,7 @@ function SavedSection({ saves, savesState, onPreview, onDelete, onNew, cols }) {
           fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.16em',
           textTransform: 'uppercase', color: 'var(--text-3)',
         }}>
-          Saved
+          {t('app.capture.saved_label')}
         </div>
         {saves.length > 0 && (
           <span style={{
@@ -304,7 +310,7 @@ function SavedSection({ saves, savesState, onPreview, onDelete, onNew, cols }) {
             borderRadius: 'var(--r-full)',
             padding: '2px 8px',
           }}>
-            {saves.length} {saves.length === 1 ? 'visualisation' : 'visualisations'}
+            {saves.length} {saves.length === 1 ? t('app.capture.vis_one') : t('app.capture.vis_many')}
           </span>
         )}
       </div>
@@ -340,7 +346,7 @@ function SavedSection({ saves, savesState, onPreview, onDelete, onNew, cols }) {
           >
             <IconUpload size={22} />
             <span style={{ fontSize: '0.64rem', fontWeight: 600, letterSpacing: '0.04em' }}>
-              New visualisation
+              {t('app.capture.new_vis')}
             </span>
           </div>
         )}
@@ -351,6 +357,7 @@ function SavedSection({ saves, savesState, onPreview, onDelete, onNew, cols }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Capture({ onRoomPicked, onAdmin }) {
+  const t              = useT()
   const fileInputRef   = useRef(null)
   const cameraInputRef = useRef(null)
   const isDesktop      = useDesktop()
@@ -426,19 +433,11 @@ export default function Capture({ onRoomPicked, onAdmin }) {
         background: 'var(--bg)',
       }}>
         <div>
-          <div style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: isDesktop ? '2.6rem' : '2.2rem',
-            fontWeight: 300, letterSpacing: '0.04em', color: 'var(--ink)', lineHeight: 1,
-          }}>
-            Vee<span style={{ fontStyle: 'italic' }}>lo</span>
-          </div>
-          <div style={{
-            fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.18em',
-            textTransform: 'uppercase', color: 'var(--text-3)', marginTop: 4,
-          }}>
-            Curtain Visualiser
-          </div>
+          <img
+            src="/logo.png"
+            alt="Vicky Israel · Textile & Design Studio"
+            style={{ height: isDesktop ? 56 : 48, width: 'auto', display: 'block' }}
+          />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -485,9 +484,9 @@ export default function Capture({ onRoomPicked, onAdmin }) {
           paddingBottom: 'calc(var(--nav-height) + 20px)',
           boxSizing: 'border-box',
         }}>
-          {/* Left column: upload zone */}
+          {/* Column 1: upload zone */}
           <div style={{
-            paddingRight: 20,
+            paddingInlineEnd: 20,
             display: 'flex',
             flexDirection: 'column',
             gap: 14,
@@ -496,10 +495,10 @@ export default function Capture({ onRoomPicked, onAdmin }) {
             <UploadZone {...zoneProps} />
           </div>
 
-          {/* Right column: tip + saved */}
+          {/* Column 2: tip + saved */}
           <div className="scroll" style={{
-            paddingLeft: 20,
-            borderLeft: '1px solid var(--border)',
+            paddingInlineStart: 20,
+            borderInlineStart: '1px solid var(--border)',
             display: 'flex',
             flexDirection: 'column',
             gap: 20,
@@ -512,10 +511,10 @@ export default function Capture({ onRoomPicked, onAdmin }) {
                 fontSize: '1.5rem', fontWeight: 300, color: 'var(--ink)',
                 lineHeight: 1.3, marginBottom: 8,
               }}>
-                See your window, <span style={{ fontStyle: 'italic' }}>transformed</span>
+                {t('app.capture.tagline')} <span style={{ fontStyle: 'italic' }}>{t('app.capture.tagline_em')}</span>
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', lineHeight: 1.6 }}>
-                Upload a photo of any room and preview photo-realistic curtains — instantly.
+                {t('app.capture.tagline_sub')}
               </div>
             </div>
 
