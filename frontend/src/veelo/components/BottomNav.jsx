@@ -6,6 +6,7 @@
 // Props:
 //   activeIcon   — SVG icon component for the centre/active tab
 //   activeLabel  — label for the centre tab
+//   onMenu       — optional callback when the Menu tab is tapped (mobile)
 //
 // The Home tab always navigates to '/' (Vicky Israel site) via React Router.
 
@@ -13,7 +14,7 @@ import { useNavigate } from 'react-router-dom'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { IconHome, IconMenu } from './icons.jsx'
 
-export default function BottomNav({ activeIcon: ActiveIcon, activeLabel }) {
+export default function BottomNav({ activeIcon: ActiveIcon, activeLabel, onMenu }) {
   const navigate  = useNavigate()
   const isDesktop = useDesktop()
 
@@ -52,7 +53,7 @@ export default function BottomNav({ activeIcon: ActiveIcon, activeLabel }) {
           label="Menu"
           icon={<IconMenu size={18} />}
           active={false}
-          onClick={null}
+          onClick={onMenu || null}
           pill
         />
       </div>
@@ -88,7 +89,7 @@ export default function BottomNav({ activeIcon: ActiveIcon, activeLabel }) {
         label="Menu"
         icon={<IconMenu size={22} />}
         active={false}
-        onClick={null}
+        onClick={onMenu || null}
       />
     </div>
   )

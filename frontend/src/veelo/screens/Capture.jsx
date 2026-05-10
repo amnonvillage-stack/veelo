@@ -4,11 +4,12 @@
 
 import { useRef, useState, useEffect } from 'react'
 import BottomNav from '../components/BottomNav.jsx'
+import MobileMenu from '../components/MobileMenu.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
 import {
   IconCamera, IconImage, IconSettings, IconLightbulb,
-  IconUpload, IconHome, IconX, IconTrash,
+  IconUpload, IconHome, IconX, IconTrash, IconMenu,
 } from '../components/icons.jsx'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -366,6 +367,7 @@ export default function Capture({ onRoomPicked, onAdmin }) {
   const [savesState, setSavesState] = useState('loading')
   const [preview,    setPreview]    = useState(null)
   const [dragOver,   setDragOver]   = useState(false)
+  const [menuOpen,   setMenuOpen]   = useState(false)
 
   // Fetch saves on mount
   useEffect(() => {
@@ -422,46 +424,68 @@ export default function Capture({ onRoomPicked, onAdmin }) {
         }
       `}</style>
 
+      <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
       <PreviewOverlay save={preview} onClose={() => setPreview(null)} onDelete={handleDelete} />
 
       {/* ── Header ── */}
       <div style={{
-        padding: isDesktop ? '16px 32px 12px' : '14px 20px 10px',
+        padding: isDesktop ? '16px 32px 12px' : '12px 20px',
         flexShrink: 0,
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-        borderBottom: isDesktop ? '1px solid var(--border)' : 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        borderBottom: '1px solid var(--border)',
         background: 'var(--bg)',
       }}>
         <div>
           <img
             src="/logo.png"
             alt="Vicky Israel · Textile & Design Studio"
-            style={{ height: isDesktop ? 56 : 48, width: 'auto', display: 'block' }}
+            style={{ height: isDesktop ? 52 : 44, width: 'auto', display: 'block' }}
           />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={onAdmin}
-            title="Admin"
-            style={{
+          {/* Hamburger — mobile only */}
+          {!isDesktop && (
+            <button
+              onClick={() => setMenuOpen(true)}
+              aria-label="Open menu"
+              style={{
+                width: 40, height: 40, borderRadius: 'var(--r-sm)',
+                background: 'none', border: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--ink)', cursor: 'pointer',
+              }}
+            >
+              <IconMenu size={24} />
+            </button>
+          )}
+
+          {/* Admin button — desktop only */}
+          {isDesktop && (
+            <button
+              onClick={onAdmin}
+              title="Admin"
+              style={{
+                width: 36, height: 36, borderRadius: '50%',
+                background: 'var(--surface-2)', border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--text-2)', cursor: 'pointer',
+                transition: 'background var(--duration)',
+              }}
+            >
+              <IconSettings size={17} />
+            </button>
+          )}
+          {isDesktop && (
+            <div style={{
               width: 36, height: 36, borderRadius: '50%',
-              background: 'var(--surface-2)', border: '1px solid var(--border)',
+              background: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--text-2)', cursor: 'pointer',
-              transition: 'background var(--duration)',
-            }}
-          >
-            <IconSettings size={17} />
-          </button>
-          <div style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'var(--accent)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.8rem', fontWeight: 700, color: '#fff',
-          }}>
-            V
-          </div>
+              fontSize: '0.8rem', fontWeight: 700, color: '#fff',
+            }}>
+              V
+            </div>
+          )}
         </div>
       </div>
 
@@ -556,7 +580,7 @@ export default function Capture({ onRoomPicked, onAdmin }) {
         </div>
       )}
 
-      <BottomNav activeIcon={IconHome} activeLabel="Home" />
+      <BottomNav activeIcon={IconHome} activeLabel={t('app.capture.home')} onMenu={() => setMenuOpen(true)} />
     </div>
   )
 }

@@ -6,6 +6,7 @@
 import { useState, useRef } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import MobileMenu from '../components/MobileMenu.jsx'
 import Toast, { useToast } from '../components/Toast.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
@@ -279,6 +280,7 @@ export default function Results({
   const [saved,       setSaved]       = useState(new Set())
   const [saving,      setSaving]      = useState(false)
   const [compareMode, setCompareMode] = useState(false)
+  const [menuOpen,    setMenuOpen]    = useState(false)
   const toast    = useToast()
   const isDesktop = useDesktop()
   const t = useT()
@@ -490,6 +492,7 @@ export default function Results({
   if (isDesktop && ready > 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)', position: 'relative' }}>
+        <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
         <style>{CSS}</style>
 
         {/* Header */}
@@ -645,7 +648,7 @@ export default function Results({
         </div>
 
         <Toast visible={toast.visible} message={toast.message} icon={toast.icon} />
-        {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} />}
+        {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} onMenu={() => setMenuOpen(true)} />}
       </div>
     )
   }
@@ -653,6 +656,7 @@ export default function Results({
   // ── Mobile / loading / error layout ──────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)', position: 'relative' }}>
+      <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
       <style>{CSS}</style>
 
       {/* Header */}

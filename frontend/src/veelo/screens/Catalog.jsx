@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import MobileMenu from '../components/MobileMenu.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
 import { IconSearch, IconX, IconCheck, IconScissors, IconSparkles } from '../components/icons.jsx'
@@ -169,6 +170,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
   const [filter,   setFilter]   = useState(curtainType || '')
   const [search,   setSearch]   = useState('')
   const [selected, setSelected] = useState([])
+  const [menuOpen, setMenuOpen] = useState(false)
   const isDesktop = useDesktop()
   const t = useT()
 
@@ -317,6 +319,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
   if (isDesktop) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
+        <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
         <style>{`
           @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
           @keyframes fab-in  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
@@ -449,13 +452,14 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
           </div>
         </div>
 
-        <BottomNav activeIcon={IconScissors} activeLabel={t('app.catalog.nav_label')} />
+        <BottomNav activeIcon={IconScissors} activeLabel={t('app.catalog.nav_label')} onMenu={() => setMenuOpen(true)} />
       </div>
     )
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
+      <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
       <style>{`
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         @keyframes fab-in  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
@@ -529,7 +533,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
 
       {visualiseFab}
 
-      <BottomNav activeIcon={IconScissors} activeLabel="Fabrics" />
+      <BottomNav activeIcon={IconScissors} activeLabel={t('app.catalog.nav_label')} onMenu={() => setMenuOpen(true)} />
     </div>
   )
 }

@@ -157,6 +157,12 @@ input, select, textarea {
   font-size: inherit;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-4);
+  opacity: 1; /* Firefox renders placeholder at 0.54 by default — override */
+}
+
 img { display: block; max-width: 100%; }
 
 /* ── Utility classes ───────────────────────────────────────────────────────── */

@@ -6,6 +6,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import MobileMenu from '../components/MobileMenu.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
 import {
@@ -117,6 +118,7 @@ export default function Configure({
     label: t(`app.configure.${d.key}`),
   }))
 
+  const [menuOpen,    setMenuOpen]    = useState(false)
   const [points,      setPoints]      = useState(initialPoints || [])
   const [curtainType, setCurtainType] = useState(initialType   || '')
   const [czW, setCzW] = useState('')
@@ -374,6 +376,7 @@ export default function Configure({
   if (isDesktop) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
+        <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
         <TopBar title={t('app.configure.title')} onBack={onBack} right={stepIndicator} />
 
         {/* ── Desktop: canvas left, controls right ── */}
@@ -387,7 +390,7 @@ export default function Configure({
           <div style={{
             position: 'relative',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: '#1a1610',
+            background: 'var(--surface-2)',
             overflow: 'hidden',
           }}>
             {canvasEl}
@@ -431,14 +434,15 @@ export default function Configure({
           </div>
         </div>
 
-        <BottomNav activeIcon={IconCamera} activeLabel={t('app.configure.nav_label')} />
+        <BottomNav activeIcon={IconCamera} activeLabel={t('app.configure.nav_label')} onMenu={() => setMenuOpen(true)} />
       </div>
     )
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
-      <TopBar title="Mark Curtain Area" onBack={onBack} right={stepIndicator} />
+      <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+      <TopBar title={t('app.configure.title')} onBack={onBack} right={stepIndicator} />
 
       {/* ── Canvas viewer ── */}
       <div style={{
@@ -493,7 +497,7 @@ export default function Configure({
         {controlsPanel(false)}
       </div>
 
-      <BottomNav activeIcon={IconCamera} activeLabel="Configure" />
+      <BottomNav activeIcon={IconCamera} activeLabel={t('app.configure.nav_label')} onMenu={() => setMenuOpen(true)} />
     </div>
   )
 }
