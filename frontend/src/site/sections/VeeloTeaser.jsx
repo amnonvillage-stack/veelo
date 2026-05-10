@@ -33,7 +33,15 @@ export default function VeeloTeaser() {
           </div>
 
           <div className="veelo-teaser__media">
-            <PhoneMockup />
+            <img
+              src="/assets/sitePhotos/main_lay.jpg"
+              alt="Curtain visualiser preview on a window photo"
+              className="veelo-teaser__phone"
+              loading="lazy"
+              decoding="async"
+              width="1376"
+              height="768"
+            />
           </div>
         </div>
       </div>

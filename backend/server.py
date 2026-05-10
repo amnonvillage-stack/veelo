@@ -14,7 +14,8 @@ Manual setup:
 Server: http://localhost:8000
 """
 
-import base64, io, json, os, re, time, sys
+import base64, io, json, os, re, time, sys, uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -752,6 +753,77 @@ async def analyze(
 @app.get("/status")
 def status():
     return {"model": MODEL_NAME, "ready": True}
+
+# ── Saves — persist a visualisation the user marked as favourite ──────────────
+SAVES_DIR = SCRIPT_DIR / "saves"
+SAVES_DIR.mkdir(parents=True, exist_ok=True)
+
+@app.post("/saves")
+async def save_result(
+    image:        UploadFile = File(...),
+    fabric_name:  str = Form(""),
+    fabric_id:    str = Form(""),
+    curtain_type: str = Form(""),
+):
+    save_id  = uuid.uuid4().hex[:12]
+    save_dir = SAVES_DIR / save_id
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    img_bytes = await image.read()
+    (save_dir / "simulation.png").write_bytes(img_bytes)
+
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    meta = {
+        "id":           save_id,
+        "fabric_name":  fabric_name,
+        "fabric_id":    fabric_id,
+        "curtain_type": curtain_type,
+        "created_at":   now_ts,                        # Unix timestamp for frontend formatRelative()
+        "path":         f"/saves/{save_id}/image",     # URL the browser can load
+    }
+    (save_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False))
+    return {"ok": True, "id": save_id}
+
+@app.get("/saves/{save_id}/image")
+def get_save_image(save_id: str):
+    """Serve the PNG for a saved visualisation."""
+    from fastapi.responses import FileResponse
+    img_path = SAVES_DIR / save_id / "simulation.png"
+    if not img_path.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Save not found")
+    return FileResponse(str(img_path), media_type="image/png")
+
+@app.get("/saves")
+def list_saves():
+    """Return all saved visualisations (meta only, no image bytes)."""
+    saves = []
+    for d in sorted(SAVES_DIR.iterdir(), reverse=True):
+        meta_file = d / "meta.json"
+        if d.is_dir() and meta_file.exists():
+            try:
+                meta = json.loads(meta_file.read_text())
+                # Back-fill path for saves written before this fix
+                if "path" not in meta:
+                    meta["path"] = f"/saves/{d.name}/image"
+                saves.append(meta)
+            except Exception:
+                pass
+    return saves
+
+@app.delete("/saves/{save_id}")
+def delete_save(save_id: str):
+    """Delete a saved visualisation (image + meta)."""
+    import shutil
+    from fastapi import HTTPException
+    # Sanitise: only hex chars allowed in save_id
+    if not re.fullmatch(r"[0-9a-f]{12}", save_id):
+        raise HTTPException(status_code=400, detail="Invalid save id")
+    save_dir = SAVES_DIR / save_id
+    if not save_dir.exists():
+        raise HTTPException(status_code=404, detail="Save not found")
+    shutil.rmtree(save_dir)
+    return {"ok": True}
 
 @app.post("/generate")
 async def generate(

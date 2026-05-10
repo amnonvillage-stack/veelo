@@ -50,7 +50,7 @@ const SLIDES = [
     alt_he: 'סלון עם וילונות אנכיים ונוף לגינה',
     alt_en: 'Living room with vertical sheer panels overlooking a garden',
     position: 'center 45%',
-    origin: '60% 50%',  // drift toward the garden view
+    origin: '60% 50%',
   },
 ]
 

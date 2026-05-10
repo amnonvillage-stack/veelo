@@ -1,433 +1,343 @@
+// ── Results ───────────────────────────────────────────────────────────────────
+// Displays AI-generated curtain visualisations.
+// Features: main viewer, swipe dots, action bar (save / share / compare),
+// fabric grid for switching, quote strip, compare-mode.
+
 import { useState, useRef } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import MobileMenu from '../components/MobileMenu.jsx'
+import Toast, { useToast } from '../components/Toast.jsx'
+import { useDesktop } from '../hooks/useDesktop.js'
+import { useT } from '../../i18n/useT.js'
+import {
+  IconHeart, IconShare, IconGrid, IconSparkles, IconStar,
+} from '../components/icons.jsx'
 
-// Fullness factor per curtain type (for fabric quantity estimate)
+// ── Fabric fullness for yardage estimate ──────────────────────────────────────
 const FULLNESS = { pleated: 2.5, eyelet: 2.0, roman: 1.1, roller: 1.0 }
-
 function estimateFabric(czW, czH, type) {
   const w = parseFloat(czW), h = parseFloat(czH)
   if (!w || !h) return null
-  const factor = FULLNESS[type] || 2.0
-  const meters = (w / 100) * factor * (h / 100)
-  return Math.ceil(meters * 10) / 10
+  return Math.ceil((w / 100) * (FULLNESS[type] || 2.0) * (h / 100) * 10) / 10
 }
 
-// ── Two-phase progress UI ─────────────────────────────────────────────────────
-const CSS_ANIM = `
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes slide {
-    0%   { transform: translateX(-100%); }
-    50%  { transform: translateX(0%);    }
-    100% { transform: translateX(100%);  }
-  }
+// ── CSS ───────────────────────────────────────────────────────────────────────
+const CSS = `
+  @keyframes spin   { to { transform:rotate(360deg); } }
+  @keyframes slide  { 0%{transform:translateX(-100%)} 50%{transform:translateX(0%)} 100%{transform:translateX(100%)} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 `
 
-function StepRow({ num, label, sublabel, status, barPct }) {
-  // status: 'pending' | 'active' | 'done'
-  const done    = status === 'done'
-  const active  = status === 'active'
-
+// ── Loading steps component ───────────────────────────────────────────────────
+function StepDot({ status }) {
+  const done   = status === 'done'
+  const active = status === 'active'
   return (
-    <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-
-      {/* Circle badge */}
-      <div style={{
-        width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: done ? '0.9rem' : '0.72rem',
-        fontWeight: 800,
-        background: done
-          ? 'var(--accent)'
-          : active ? 'var(--accent-dim)' : 'var(--surface-2)',
-        border: `2px solid ${done || active ? 'var(--accent)' : 'var(--border)'}`,
-        color: done ? '#fff' : active ? 'var(--accent)' : 'var(--text-3)',
-        transition: 'all 0.3s ease',
-      }}>
-        {done ? '✓' : num}
-      </div>
-
-      {/* Text + bar */}
-      <div style={{ flex: 1, paddingTop: 4 }}>
-        <div style={{
-          fontSize: '0.85rem', fontWeight: 600, lineHeight: 1.2,
-          color: active || done ? 'var(--ink)' : 'var(--text-3)',
-          transition: 'color 0.3s',
-        }}>
-          {label}
-        </div>
-        <div style={{
-          fontSize: '0.7rem', color: 'var(--text-3)', marginTop: 2,
-          marginBottom: active ? 10 : 0,
-        }}>
-          {sublabel}
-        </div>
-
-        {active && (
-          <div style={{
-            height: 4, borderRadius: 2,
-            background: 'var(--surface-3)',
-            overflow: 'hidden',
-            position: 'relative',
-          }}>
-            {barPct == null ? (
-              /* Indeterminate sliding bar */
-              <div style={{
-                position: 'absolute', top: 0, left: 0,
-                height: '100%', width: '40%',
-                background: 'var(--accent)',
-                borderRadius: 2,
-                animation: 'slide 1.4s ease-in-out infinite',
-              }} />
-            ) : (
-              /* Determinate fill */
-              <div style={{
-                height: '100%',
-                width: `${Math.max(4, barPct)}%`,
-                background: 'var(--accent)',
-                borderRadius: 2,
-                transition: 'width 0.5s ease',
-              }} />
-            )}
-          </div>
-        )}
-      </div>
+    <div style={{
+      width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: done ? '0.95rem' : '0.7rem', fontWeight: 800,
+      background: done ? 'var(--accent)' : active ? 'var(--accent-dim)' : 'var(--surface-2)',
+      border: `2px solid ${done || active ? 'var(--accent)' : 'var(--border)'}`,
+      color:   done ? '#fff'           : active ? 'var(--accent)'   : 'var(--text-3)',
+      transition: 'all 0.3s ease',
+    }}>
+      {done ? '✓' : active ? '…' : '○'}
     </div>
   )
 }
 
 function ProgressSteps({ analysing, generating, ready, total }) {
+  const t = useT()
   const step1 = analysing ? 'active' : 'done'
   const step2 = analysing ? 'pending' : (generating || ready > 0) ? 'active' : 'done'
-  const genBarPct = total > 0 ? (ready / total) * 100 : 0
+  const genPct = total > 0 ? (ready / total) * 100 : 0
+
+  const rows = [
+    {
+      status: step1,
+      label: t('app.results.analysing_room'),
+      sub: analysing ? t('app.results.analysing_sub') : t('app.results.analysed_sub'),
+      barPct: null,
+    },
+    {
+      status: step2,
+      label: `${t('app.results.generating_label')} ${total} ${total > 1 ? t('app.results.vis_many') : t('app.results.vis_one')}`,
+      sub: analysing ? t('app.results.waiting_analysis')
+        : generating ? `${ready} ${t('app.results.gen_progress_of')} ${total} ${t('app.results.gen_progress_complete')}`
+        : `${ready} ${t('app.results.gen_progress_of')} ${total} ${t('app.results.gen_done_complete')}`,
+      barPct: genPct,
+    },
+  ]
 
   return (
-    <div style={{
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '0 32px',
-    }}>
-      <style>{CSS_ANIM}</style>
-
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
+      <style>{CSS}</style>
       <div style={{
-        width: '100%',
+        width: '100%', maxWidth: 480,
         background: 'var(--surface)',
         border: '1px solid var(--border)',
         borderRadius: 'var(--r-lg)',
-        padding: '28px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 28,
+        padding: '28px 22px',
+        display: 'flex', flexDirection: 'column', gap: 26,
       }}>
-        <div style={{
-          fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.16em',
-          textTransform: 'uppercase', color: 'var(--text-3)',
-        }}>
-          Preparing your visualisation
+        <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+          {t('app.results.preparing')}
         </div>
-
-        <StepRow
-          num={1}
-          label="Analysing room"
-          sublabel={analysing
-            ? 'Reading light, perspective & window geometry…'
-            : 'Room understood ✓'}
-          status={step1}
-          barPct={null}
-        />
-
-        <StepRow
-          num={2}
-          label={`Generating ${total} visualisation${total > 1 ? 's' : ''}`}
-          sublabel={analysing
-            ? 'Waiting for analysis…'
-            : generating
-              ? `${ready} of ${total} complete — ~15–30 s each`
-              : `${ready} of ${total} complete`}
-          status={step2}
-          barPct={genBarPct}
-        />
+        {rows.map((r, i) => (
+          <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <StepDot status={r.status} />
+            <div style={{ flex: 1, paddingTop: 4 }}>
+              <div style={{
+                fontSize: '0.85rem', fontWeight: 600, lineHeight: 1.2,
+                color: r.status !== 'pending' ? 'var(--ink)' : 'var(--text-3)',
+                transition: 'color 0.3s',
+              }}>
+                {r.label}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-3)', marginTop: 2, marginBottom: r.status === 'active' ? 8 : 0 }}>
+                {r.sub}
+              </div>
+              {r.status === 'active' && (
+                <div style={{ height: 4, borderRadius: 2, background: 'var(--surface-3)', overflow: 'hidden', position: 'relative' }}>
+                  {r.barPct === 0 ? (
+                    <div style={{
+                      position: 'absolute', top: 0, left: 0, height: '100%', width: '40%',
+                      background: 'var(--accent)', borderRadius: 2,
+                      animation: 'slide 1.4s ease-in-out infinite',
+                    }} />
+                  ) : (
+                    <div style={{
+                      height: '100%', width: `${Math.max(4, r.barPct)}%`,
+                      background: 'var(--accent)', borderRadius: 2,
+                      transition: 'width 0.5s ease',
+                    }} />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
-// ── Compact generation bar (shown above results while more are pending) ────────
+// ── Compact gen-progress bar ──────────────────────────────────────────────────
 function GenBar({ ready, total }) {
+  const t = useT()
   return (
-    <div style={{
-      padding: '8px 20px 6px',
-      borderBottom: '1px solid var(--border)',
-      background: 'var(--bg)',
-      flexShrink: 0,
-    }}>
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 5,
-      }}>
-        <span style={{ fontSize: '0.66rem', color: 'var(--text-3)' }}>
-          Generating…
-        </span>
-        <span style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--accent)' }}>
-          {ready} / {total}
-        </span>
+    <div style={{ padding: '8px 18px 6px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: '0.64rem', color: 'var(--text-3)' }}>{t('app.results.gen_bar')}</span>
+        <span style={{ fontSize: '0.64rem', fontWeight: 700, color: 'var(--accent)' }}>{ready} / {total}</span>
       </div>
       <div style={{ height: 3, borderRadius: 2, background: 'var(--surface-3)', overflow: 'hidden' }}>
         <div style={{
-          height: '100%',
-          width: `${(ready / total) * 100}%`,
-          background: 'var(--accent)',
-          borderRadius: 2,
-          transition: 'width 0.5s ease',
+          height: '100%', width: `${(ready / total) * 100}%`,
+          background: 'var(--accent)', borderRadius: 2, transition: 'width 0.5s ease',
         }} />
       </div>
     </div>
   )
 }
 
-// ── Result card ───────────────────────────────────────────────────────────────
-function CompareThumbnail({ result, rank, onSelect, selected }) {
-  return (
-    <div
-      onClick={() => onSelect(result)}
-      style={{
-        borderRadius: 'var(--r-sm)',
-        overflow: 'hidden',
-        border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
-        cursor: 'pointer',
-        boxShadow: selected ? '0 0 0 3px var(--accent-dim)' : 'none',
-        transition: 'border-color var(--duration)',
-      }}
-    >
-      <div style={{ height: 140, background: 'var(--ink)', position: 'relative', overflow: 'hidden' }}>
-        <img
-          src={result.imageUrl}
-          alt={result.fabric.name}
-          style={{ width:'100%', height:'100%', objectFit:'cover' }}
-        />
-        {rank === 0 && (
-          <div style={{
-            position: 'absolute', top: 6, left: 6,
-            background: 'var(--accent)', color: '#fff',
-            fontSize: '0.54rem', fontWeight: 800, letterSpacing: '0.08em',
-            padding: '2px 7px', borderRadius: 4,
-          }}>
-            ★ TOP
-          </div>
-        )}
-      </div>
-      <div style={{ padding: '8px 10px', background: 'var(--surface)' }}>
-        <div style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '0.9rem', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.2,
-        }}>
-          {result.fabric.name}
-        </div>
-        <div style={{ fontSize: '0.62rem', color: 'var(--text-2)', marginTop: 2 }}>
-          ₪{result.fabric.price_per_m} / m
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Prompt Preview Panel ──────────────────────────────────────────────────────
+// ── Prompt preview (debug) ────────────────────────────────────────────────────
 function PromptPreview({ preview, onContinue, onCancel }) {
   const { prompt, fabrics } = preview
-  const fabricNames = fabrics.map(f => f.name).join(', ')
-
   return (
-    <div style={{
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      minHeight: 0,
-    }}>
-      {/* Header strip */}
-      <div style={{
-        padding: '12px 20px',
-        background: 'rgba(192,112,80,.06)',
-        borderBottom: '1px solid rgba(192,112,80,.2)',
-        flexShrink: 0,
-      }}>
-        <div style={{
-          fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.16em',
-          textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 4,
-        }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ padding: '12px 20px', background: 'rgba(192,112,80,.06)', borderBottom: '1px solid rgba(192,112,80,.2)', flexShrink: 0 }}>
+        <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 4 }}>
           🔬 Debug — Gemini prompt preview
         </div>
         <div style={{ fontSize: '0.7rem', color: 'var(--text-2)', lineHeight: 1.4 }}>
-          Based on fabric: <strong style={{ color: 'var(--ink)' }}>{fabricNames}</strong>.
-          Review the prompt then continue to generate, or go back to adjust.
+          Fabrics: <strong style={{ color: 'var(--ink)' }}>{fabrics.map(f => f.name).join(', ')}</strong>
         </div>
       </div>
-
-      {/* Scrollable prompt text */}
-      <div className="scroll" style={{
-        flex: 1,
-        padding: '16px 20px',
-        minHeight: 0,
-      }}>
+      <div className="scroll" style={{ flex: 1, padding: '16px 20px', minHeight: 0 }}>
         <pre style={{
-          margin: 0,
-          fontFamily: 'monospace',
-          fontSize: '0.72rem',
-          lineHeight: 1.65,
-          color: 'var(--ink)',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--r-md)',
-          padding: '14px 16px',
+          margin: 0, fontFamily: 'monospace', fontSize: '0.72rem', lineHeight: 1.65,
+          color: 'var(--ink)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 'var(--r-md)', padding: '14px 16px',
         }}>
           {prompt}
         </pre>
-        <div style={{ fontSize: '0.62rem', color: 'var(--text-3)', marginTop: 10, textAlign: 'right' }}>
-          {prompt.length} chars · {fabrics.length} fabric{fabrics.length > 1 ? 's' : ''} queued
-        </div>
       </div>
-
-      {/* Action buttons */}
-      <div style={{
-        display: 'flex',
-        gap: 10,
-        padding: '12px 20px',
-        borderTop: '1px solid var(--border)',
-        flexShrink: 0,
-        paddingBottom: 'calc(var(--nav-height) + 12px)',
-        background: 'var(--bg)',
-      }}>
-        <button
-          onClick={onCancel}
-          style={{
-            flex: 1, padding: '13px',
-            borderRadius: 'var(--r-md)',
-            background: 'none',
-            border: '1px solid var(--border)',
-            color: 'var(--text-2)',
-            fontSize: '0.8rem', fontWeight: 500,
-            cursor: 'pointer',
-          }}
-        >
-          ← Back to catalogue
+      <div style={{ display: 'flex', gap: 10, padding: '12px 20px calc(var(--nav-height) + 12px)', borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
+        <button onClick={onCancel} style={{ flex: 1, padding: '13px', borderRadius: 'var(--r-md)', background: 'none', border: '1px solid var(--border)', color: 'var(--text-2)', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer' }}>
+          ← Back
         </button>
-        <button
-          onClick={onContinue}
-          style={{
-            flex: 2, padding: '13px',
-            borderRadius: 'var(--r-md)',
-            background: 'var(--accent)',
-            border: 'none',
-            color: '#fff',
-            fontSize: '0.8rem', fontWeight: 700,
-            letterSpacing: '0.04em',
-            cursor: 'pointer',
-          }}
-        >
-          Generate {fabrics.length} visualisation{fabrics.length > 1 ? 's' : ''} →
+        <button onClick={onContinue} style={{ flex: 2, padding: '13px', borderRadius: 'var(--r-md)', background: 'var(--accent)', border: 'none', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+          Generate {fabrics.length} →
         </button>
       </div>
     </div>
   )
 }
 
-// ── Source thumbnail card ─────────────────────────────────────────────────────
+// ── Thumbnail cards ───────────────────────────────────────────────────────────
 function SourceThumbnail({ roomUrl, selected, onSelect }) {
+  const t = useT()
+  return (
+    <ThumbnailCard
+      imgSrc={roomUrl}
+      title={t('app.results.before')}
+      subtitle={t('app.results.original_room')}
+      badge={{ label: t('app.results.badge_original'), dark: true }}
+      selected={selected}
+      onSelect={onSelect}
+    />
+  )
+}
+
+function CompareThumbnail({ result, rank, selected, onSelect }) {
+  const t = useT()
+  return (
+    <ThumbnailCard
+      imgSrc={result.imageUrl}
+      title={result.fabric.name}
+      subtitle={`₪${result.fabric.price_per_m} / m`}
+      badge={rank === 0 ? { label: t('app.results.badge_top'), accent: true } : null}
+      selected={selected}
+      onSelect={() => onSelect(result)}
+    />
+  )
+}
+
+function ThumbnailCard({ imgSrc, title, subtitle, badge, selected, onSelect }) {
   return (
     <div
       onClick={onSelect}
       style={{
-        borderRadius: 'var(--r-sm)',
+        borderRadius: 'var(--r-md)',
         overflow: 'hidden',
-        border: selected ? '2px solid var(--border-2)' : '1px solid var(--border)',
+        border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
         cursor: 'pointer',
-        boxShadow: selected ? '0 0 0 3px rgba(26,22,16,.12)' : 'none',
-        transition: 'border-color var(--duration)',
+        boxShadow: selected ? '0 0 0 3px var(--accent-glow)' : 'var(--shadow-sm)',
+        transition: 'border-color var(--duration), box-shadow var(--duration), transform 0.15s var(--ease)',
+        transform: selected ? 'translateY(-1px)' : 'none',
+        background: 'var(--surface)',
       }}
     >
-      <div style={{ height: 140, background: 'var(--surface-2)', position: 'relative', overflow: 'hidden' }}>
-        <img
-          src={roomUrl}
-          alt="Original"
-          style={{ width:'100%', height:'100%', objectFit:'cover' }}
-        />
-        <div style={{
-          position: 'absolute', top: 6, left: 6,
-          background: 'rgba(26,22,16,.72)', color: '#fff',
-          fontSize: '0.54rem', fontWeight: 800, letterSpacing: '0.08em',
-          padding: '2px 7px', borderRadius: 4,
-        }}>
-          ORIGINAL
-        </div>
+      <div style={{ height: 130, background: 'var(--surface-ink)', position: 'relative', overflow: 'hidden' }}>
+        <img src={imgSrc} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        {badge && (
+          <div style={{
+            position: 'absolute', top: 7, left: 7,
+            background: badge.accent ? 'var(--accent)' : badge.dark ? 'rgba(26,22,16,.72)' : 'rgba(255,255,255,.88)',
+            color: badge.accent || badge.dark ? '#fff' : 'var(--ink)',
+            fontSize: '0.5rem', fontWeight: 800, letterSpacing: '0.08em',
+            padding: '2px 7px', borderRadius: 'var(--r-xs)',
+          }}>
+            {badge.label}
+          </div>
+        )}
       </div>
-      <div style={{ padding: '8px 10px', background: 'var(--surface)' }}>
-        <div style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '0.9rem', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.2,
-        }}>
-          Before
+      <div style={{ padding: '8px 10px 10px' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.1 }}>
+          {title}
         </div>
-        <div style={{ fontSize: '0.62rem', color: 'var(--text-3)', marginTop: 2 }}>
-          Original room
-        </div>
+        <div style={{ fontSize: '0.62rem', color: 'var(--text-3)', marginTop: 2 }}>{subtitle}</div>
       </div>
     </div>
   )
 }
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ── Action button (Save / Share / Compare) ────────────────────────────────────
+function ActionBtn({ icon: Icon, label, onClick, disabled, active, color }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        flex: 1, padding: '9px 4px',
+        borderRadius: 'var(--r-sm)',
+        border: active ? `1px solid ${color || 'var(--accent)'}` : '1px solid var(--border)',
+        background: active ? (color ? `${color}18` : 'var(--accent-dim)') : 'var(--surface-2)',
+        color: disabled ? 'var(--text-4)' : active ? (color || 'var(--accent)') : 'var(--text-2)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+        cursor: disabled ? 'default' : 'pointer',
+        transition: 'all var(--duration)',
+      }}
+    >
+      {Icon && <Icon size={20} filled={active} />}
+      <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.04em' }}>{label}</span>
+    </button>
+  )
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function Results({
   results, selectedFabrics, roomUrl,
   czWidthCm, czHeightCm, curtainType,
   analysing, generating, promptPreview, onContinue, onCancelPreview,
   error, onBack, onNewRoom,
 }) {
-  // activeIdx: -1 = source image, 0..n-1 = generated results
-  const [activeIdx,    setActiveIdx]    = useState(0)
-  const [saved,        setSaved]        = useState(new Set()) // saved result indices
-  const [saving,       setSaving]       = useState(false)
-  const [compareMode,  setCompareMode]  = useState(false)     // dedicated comparison view
-  const compareRef = useRef(null)   // (kept for potential future scroll anchor)
+  const [activeIdx,   setActiveIdx]   = useState(0)
+  const [saved,       setSaved]       = useState(new Set())
+  const [saving,      setSaving]      = useState(false)
+  const [compareMode, setCompareMode] = useState(false)
+  const [menuOpen,    setMenuOpen]    = useState(false)
+  const toast    = useToast()
+  const isDesktop = useDesktop()
+  const t = useT()
 
-  const total   = selectedFabrics.length
-  const ready   = results.length
-  const loading = analysing || (ready === 0 && generating && !promptPreview)
+  const total    = selectedFabrics.length
+  const ready    = results.length
+  const loading  = analysing || (ready === 0 && generating && !promptPreview)
+  const isSource = activeIdx === -1
+  const active   = isSource ? null : (results[activeIdx] ?? null)
 
   const fabricMeters = estimateFabric(czWidthCm, czHeightCm, curtainType)
-  const isSource     = activeIdx === -1
-  const activeResult = isSource ? null : (results[activeIdx] ?? null)
+  const viewerSrc    = isSource ? roomUrl : active?.imageUrl
 
-  // ── Favourite — persist to project folder via server ─────────────────────
-  const handleFavourite = async () => {
-    if (!activeResult || saving) return
-    // Toggle off if already saved (optimistic UI, no server-side delete yet)
+  // ── Save ──────────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!active || saving) return
     if (saved.has(activeIdx)) {
       setSaved(prev => { const s = new Set(prev); s.delete(activeIdx); return s })
+      toast.show(t('app.results.toast_removed'))
       return
     }
     setSaving(true)
     try {
-      const blob = await fetch(activeResult.imageUrl).then(r => r.blob())
+      const blob = await fetch(active.imageUrl).then(r => r.blob())
       const fd   = new FormData()
       fd.append('image',        blob, 'curtain.png')
-      fd.append('fabric_name',  activeResult.fabric.name)
-      fd.append('fabric_id',    activeResult.fabric.id)
+      fd.append('fabric_name',  active.fabric.name)
+      fd.append('fabric_id',    active.fabric.id)
       fd.append('curtain_type', curtainType)
       const res = await fetch('/saves', { method: 'POST', body: fd })
-      if (res.ok) setSaved(prev => new Set(prev).add(activeIdx))
-      else        console.error('Favourite failed:', res.status)
-    } catch (e) {
-      console.error('Favourite failed:', e)
+      if (res.ok) {
+        setSaved(prev => new Set(prev).add(activeIdx))
+        toast.show(t('app.results.toast_saved'), <IconHeart size={14} filled />)
+      } else {
+        toast.show(t('app.results.toast_save_failed'))
+      }
+    } catch {
+      toast.show(t('app.results.toast_network_error'))
     } finally {
       setSaving(false)
     }
   }
 
-  // ── Swipe — range is -1 (source) to results.length-1 ─────────────────────
+  // ── Share ─────────────────────────────────────────────────────────────────
+  const handleShare = async () => {
+    if (!active) return
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: active.fabric.name, text: `Curtain simulation: ${active.fabric.name}` })
+      } else {
+        await navigator.clipboard.writeText(window.location.href)
+        toast.show(t('app.results.toast_link_copied'))
+      }
+    } catch {/* user cancelled */ }
+  }
+
+  // ── Swipe ─────────────────────────────────────────────────────────────────
   const [touchStart, setTouchStart] = useState(null)
   const handleTouchStart = e => setTouchStart(e.touches[0].clientX)
   const handleTouchEnd   = e => {
@@ -441,358 +351,405 @@ export default function Results({
     setTouchStart(null)
   }
 
-  // Current image URL for the main viewer
-  const viewerSrc = isSource ? roomUrl : activeResult?.imageUrl
+  // ── Status badge ──────────────────────────────────────────────────────────
+  const statusBadge = analysing
+    ? <span style={{ fontSize: '0.68rem', color: 'var(--accent)', fontWeight: 600 }}>{t('app.results.analysing_status')}</span>
+    : promptPreview
+      ? <span style={{ fontSize: '0.68rem', color: 'var(--accent)', fontWeight: 700 }}>⏸ Paused</span>
+      : generating
+        ? <span style={{ fontSize: '0.68rem', color: 'var(--accent)' }}>{ready}/{total} ready…</span>
+        : <span style={{ fontSize: '0.68rem', color: 'var(--text-3)' }}>{ready} {t('app.results.gen_progress_of')} {total}</span>
 
-  return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'var(--bg)' }}>
-      <style>{CSS_ANIM}</style>
+  // ── Action row ────────────────────────────────────────────────────────────
+  const actionRow = (
+    <div style={{ display: 'flex', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+      <ActionBtn
+        icon={IconHeart}
+        label={saving ? '…' : saved.has(activeIdx) ? t('app.results.saved') : t('app.results.save')}
+        onClick={handleSave}
+        disabled={isSource || saving}
+        active={saved.has(activeIdx)}
+        color="rgb(210,70,80)"
+      />
+      <ActionBtn
+        icon={IconShare}
+        label={t('app.results.share')}
+        onClick={handleShare}
+        disabled={isSource}
+        active={false}
+      />
+      <ActionBtn
+        icon={IconGrid}
+        label={t('app.results.compare')}
+        onClick={() => setCompareMode(true)}
+        disabled={false}
+        active={false}
+      />
+    </div>
+  )
 
-      {compareMode ? (
-        /* Slim header for compare mode — left side shows the *current peek* so the
-           user always knows what "Done" will commit. */
-        <div style={{
-          display:'flex', alignItems:'center', justifyContent:'space-between',
-          gap: 12,
-          padding:'10px 18px',
-          borderBottom:'1px solid var(--border)',
-          flexShrink: 0,
-        }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{
-              fontSize:'0.54rem', fontWeight:700, letterSpacing:'0.14em',
-              textTransform:'uppercase', color:'var(--text-3)', marginBottom: 1,
-            }}>
-              {isSource ? 'Compare · before' : 'Compare · peek'}
-            </div>
-            <div
-              style={{
-                fontFamily:'var(--font-display)',
-                fontSize:'1rem', fontWeight:500, color:'var(--ink)',
-                lineHeight:1.1,
-                whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
-              }}
-            >
-              {isSource ? 'Original room' : activeResult?.fabric.name}
-            </div>
-          </div>
-          <button
-            onClick={() => setCompareMode(false)}
-            style={{
-              padding:'8px 18px', borderRadius:'var(--r-full)',
-              background:'var(--accent)', color:'#fff',
-              fontSize:'0.7rem', fontWeight:700, letterSpacing:'0.06em',
-              border:'none', cursor:'pointer', flexShrink: 0,
-            }}
-          >
-            Use this
-          </button>
+  // ── Thumbnail grid ────────────────────────────────────────────────────────
+  const thumbnailGrid = (cols) => (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 10, padding: '0 16px' }}>
+      <SourceThumbnail roomUrl={roomUrl} selected={activeIdx === -1} onSelect={() => setActiveIdx(-1)} />
+      {results.map((r, i) => (
+        <CompareThumbnail
+          key={r.fabric.id}
+          result={r} rank={i}
+          selected={i === activeIdx}
+          onSelect={() => setActiveIdx(i)}
+        />
+      ))}
+    </div>
+  )
+
+  // ── Quote strip ───────────────────────────────────────────────────────────
+  const quoteStrip = fabricMeters && active && !compareMode && (
+    <div style={{
+      margin: '14px 16px 0',
+      background: 'var(--accent-dim)',
+      border: '1px solid rgba(192,112,80,.2)',
+      borderRadius: 'var(--r-md)',
+      padding: '14px 16px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+    }}>
+      <div>
+        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)' }}>{t('app.results.ready_to_order')}</div>
+        <div style={{ fontSize: '0.62rem', color: 'var(--text-2)', marginTop: 2 }}>
+          Est. {fabricMeters} m · ₪{Math.round(fabricMeters * active.fabric.price_per_m).toLocaleString()}
         </div>
-      ) : (
-        <TopBar
-          title="Results"
-          onBack={onBack}
-          right={
-            analysing
-              ? <span style={{ fontSize:'0.7rem', color:'var(--accent)' }}>Analysing…</span>
-              : promptPreview
-                ? <span style={{ fontSize:'0.7rem', color:'var(--accent)', fontWeight:700 }}>⏸ Paused</span>
-                : generating
-                  ? <span style={{ fontSize:'0.7rem', color:'var(--accent)' }}>
-                      {ready} / {total} ready…
-                    </span>
-                  : <span style={{ fontSize:'0.7rem', color:'var(--text-3)' }}>
-                      {ready} of {total} ready
-                    </span>
-          }
-        />
-      )}
+      </div>
+      <button style={{
+        padding: '9px 16px', borderRadius: 'var(--r-sm)',
+        background: 'var(--accent)', color: '#fff',
+        border: 'none', fontSize: '0.76rem', fontWeight: 700,
+        cursor: 'pointer', flexShrink: 0,
+      }}>
+        {t('app.results.get_quote')}
+      </button>
+    </div>
+  )
 
-      {/* ── Loading: no results yet ── */}
-      {loading && !error && (
-        <ProgressSteps
-          analysing={analysing}
-          generating={generating}
-          ready={ready}
-          total={total}
-        />
-      )}
+  // ── Image viewer ──────────────────────────────────────────────────────────
+  const imageViewer = (height, compact) => (
+    <div
+      style={{
+        height,
+        position: 'relative', background: 'var(--surface-ink)', flexShrink: 0,
+        transition: 'height var(--duration) var(--ease)',
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <img
+        src={viewerSrc}
+        alt={isSource ? 'Original' : active?.fabric.name}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
 
-      {/* ── Debug: prompt preview panel ── */}
-      {promptPreview && !ready && (
-        <PromptPreview
-          preview={promptPreview}
-          onContinue={onContinue}
-          onCancel={onCancelPreview}
-        />
-      )}
-
-      {/* ── Error with no results ── */}
-      {!loading && ready === 0 && error && (
+      {/* Label overlay */}
+      {!compact && (
         <div style={{
-          flex:1, display:'flex', flexDirection:'column',
-          alignItems:'center', justifyContent:'center', gap:12, padding:24,
+          position: 'absolute', top: 12, left: 12,
+          background: 'rgba(250,246,240,.92)', backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(26,22,16,.1)', borderRadius: 'var(--r-sm)',
+          padding: '7px 12px',
         }}>
-          <div style={{ fontSize:'2rem' }}>⚠️</div>
-          <div style={{ fontSize:'.82rem', color:'var(--ink)', fontWeight:500, textAlign:'center' }}>
-            Generation failed
-          </div>
-          <div style={{ fontSize:'.72rem', color:'var(--text-2)', textAlign:'center' }}>{error}</div>
-          <button onClick={onBack} style={{
-            marginTop:8, padding:'10px 24px', borderRadius:'var(--r-md)',
-            background:'var(--ink)', color:'var(--bg)', border:'none',
-            fontSize:'.8rem', fontWeight:500, cursor:'pointer',
+          {isSource ? (
+            <>
+              <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 1 }}>{t('app.results.before')}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 500, color: 'var(--ink)' }}>{t('app.results.original_room')}</div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 1 }}>
+                {active.fabric.collection} · {active.fabric.type}
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.1 }}>
+                {active.fabric.name}
+              </div>
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-2)', marginTop: 2 }}>
+                ₪{active.fabric.price_per_m} / m
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Swipe dots */}
+      <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
+        <div onClick={() => setActiveIdx(-1)} style={{ width: activeIdx === -1 ? 20 : 8, height: 4, borderRadius: 2, cursor: 'pointer', background: activeIdx === -1 ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.3)', transition: 'all var(--duration)' }} />
+        {results.map((_, i) => (
+          <div key={i} onClick={() => setActiveIdx(i)} style={{ width: i === activeIdx ? 20 : 8, height: 4, borderRadius: 2, cursor: 'pointer', background: i === activeIdx ? '#fff' : 'rgba(255,255,255,.4)', transition: 'all var(--duration)' }} />
+        ))}
+        {generating && <div style={{ width: 8, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.2)' }} />}
+      </div>
+    </div>
+  )
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  if (isDesktop && ready > 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)', position: 'relative' }}>
+        <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+        <style>{CSS}</style>
+
+        {/* Header */}
+        {compareMode ? (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0 18px', height: 52,
+            borderBottom: '1px solid var(--border)', flexShrink: 0, background: 'var(--bg)',
           }}>
-            ← Try again
-          </button>
-        </div>
-      )}
+            <div>
+              <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+                {isSource ? t('app.results.before') : t('app.results.compare_peek')}
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 500, color: 'var(--ink)' }}>
+                {isSource ? t('app.results.original_room') : active?.fabric.name}
+              </div>
+            </div>
+            <button
+              onClick={() => setCompareMode(false)}
+              style={{ padding: '8px 18px', borderRadius: 'var(--r-full)', background: 'var(--accent)', color: '#fff', fontSize: '0.7rem', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+            >
+              {t('app.results.use_this')}
+            </button>
+          </div>
+        ) : (
+          <TopBar title={t('app.results.title')} onBack={onBack} right={statusBadge} />
+        )}
 
-      {/* ── Results view ── */}
-      {ready > 0 && (
-        <>
-          {/* Compact progress bar while still generating */}
-          {!compareMode && generating && <GenBar ready={ready} total={total} />}
+        {!compareMode && generating && <GenBar ready={ready} total={total} />}
 
-          {/* Main image viewer — shrinks in compare mode so the grid gets more room,
-              but stays visible so users have a real preview to peek at before committing */}
-          <div
-            style={{
-              height: compareMode ? 'min(30vh, 220px)' : 'min(38vh, 280px)',
-              position:'relative',
-              background:'var(--ink)',
-              flexShrink:0,
-              transition: 'height var(--duration) var(--ease)',
-            }}
+        {/* ── Desktop: two-column layout ── */}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 340px', overflow: 'hidden' }}>
+
+          {/* Left: large image viewer */}
+          <div style={{ position: 'relative', background: 'var(--surface-ink)', overflow: 'hidden' }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
             <img
               src={viewerSrc}
-              alt={isSource ? 'Original room' : activeResult?.fabric.name}
-              style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+              alt={isSource ? 'Original' : active?.fabric.name}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
             />
 
-            {/* Label overlay — hidden in compare mode (the slim header already shows the name) */}
+            {/* Label overlay */}
             {!compareMode && (
-            <div style={{
-              position:'absolute', top:12, left:12,
-              background:'rgba(250,246,240,.92)', backdropFilter:'blur(12px)',
-              border:'1px solid rgba(26,22,16,.1)', borderRadius:'var(--r-sm)',
-              padding:'7px 12px',
-            }}>
-              {isSource ? (
-                <>
-                  <div style={{ fontSize:'0.54rem', fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--text-3)', marginBottom:1 }}>
-                    Before
-                  </div>
-                  <div style={{ fontFamily:'var(--font-display)', fontSize:'1rem', fontWeight:500, color:'var(--ink)', lineHeight:1.1 }}>
-                    Original room
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize:'0.54rem', fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--accent)', marginBottom:1 }}>
-                    {activeResult.fabric.collection} · {activeResult.fabric.type}
-                  </div>
-                  <div style={{ fontFamily:'var(--font-display)', fontSize:'1rem', fontWeight:500, color:'var(--ink)', lineHeight:1.1 }}>
-                    {activeResult.fabric.name}
-                  </div>
-                  <div style={{ fontSize:'0.62rem', color:'var(--text-2)', marginTop:1 }}>
-                    ₪{activeResult.fabric.price_per_m} / m
-                  </div>
-                </>
-              )}
-            </div>
-            )}
-
-            {/* Swipe dots — source dot first, then one per result */}
-            <div style={{
-              position:'absolute', bottom:10, left:'50%', transform:'translateX(-50%)',
-              display:'flex', gap:6,
-            }}>
-              {/* Source dot */}
-              <div onClick={() => setActiveIdx(-1)} style={{
-                width: activeIdx === -1 ? 20 : 8,
-                height: 4, borderRadius: 2, cursor:'pointer',
-                background: activeIdx === -1 ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.3)',
-                transition: 'all var(--duration)',
-              }} />
-              {results.map((_, i) => (
-                <div key={i} onClick={() => setActiveIdx(i)} style={{
-                  width: i === activeIdx ? 20 : 8,
-                  height: 4, borderRadius: 2, cursor:'pointer',
-                  background: i === activeIdx ? '#fff' : 'rgba(255,255,255,.4)',
-                  transition: 'all var(--duration)',
-                }} />
-              ))}
-              {generating && (
-                <div style={{ width:8, height:4, borderRadius:2, background:'rgba(255,255,255,.2)' }} />
-              )}
-            </div>
-          </div>
-
-          {/* Action row — hidden in compare mode */}
-          {!compareMode && (
-          <div style={{
-            display:'flex', gap:8, padding:'10px 18px',
-            borderBottom:'1px solid var(--border)', flexShrink:0,
-          }}>
-            {/* Favourite */}
-            <button
-              onClick={handleFavourite}
-              disabled={isSource || saving}
-              style={{
-                flex:1, padding:'9px 4px', borderRadius:'var(--r-sm)',
-                border: saved.has(activeIdx)
-                  ? '1px solid rgba(210,70,80,.35)'
-                  : '1px solid var(--border)',
-                background: saved.has(activeIdx) ? 'rgba(210,70,80,.08)' : 'var(--surface-2)',
-                fontSize:'0.68rem', fontWeight:700,
-                color: isSource
-                  ? 'var(--text-4)'
-                  : saved.has(activeIdx)
-                    ? 'rgb(210,70,80)'
-                    : 'var(--text-2)',
-                display:'flex', flexDirection:'column', alignItems:'center', gap:4,
-                cursor: isSource ? 'default' : 'pointer',
-                transition: 'all var(--duration)',
-              }}
-            >
-              <span style={{
-                fontSize: '1.15rem',
-                lineHeight: 1,
-                transition: 'transform 0.15s ease',
-                display: 'block',
-                transform: saving ? 'scale(0.85)' : saved.has(activeIdx) ? 'scale(1.1)' : 'scale(1)',
+              <div style={{
+                position: 'absolute', top: 16, left: 16,
+                background: 'rgba(250,246,240,.92)', backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(26,22,16,.1)', borderRadius: 'var(--r-sm)',
+                padding: '8px 14px',
               }}>
-                {saved.has(activeIdx) ? '♥' : '♡'}
-              </span>
-              {saving ? '…' : saved.has(activeIdx) ? 'Saved' : 'Save'}
-            </button>
-
-            {/* Share (placeholder) */}
-            <button style={{
-              flex:1, padding:'9px 4px', borderRadius:'var(--r-sm)',
-              border: '1px solid var(--border)',
-              background: 'var(--surface-2)',
-              fontSize:'0.68rem', fontWeight:700, color:'var(--text-2)',
-              display:'flex', flexDirection:'column', alignItems:'center', gap:4,
-              cursor:'pointer',
-            }}>
-              <span style={{ fontSize:'1rem' }}>↗</span>
-              Share
-            </button>
-
-            {/* Compare — enters full-screen compare mode (chrome hides, grid takes the screen) */}
-            <button
-              onClick={() => setCompareMode(true)}
-              style={{
-                flex:1, padding:'9px 4px', borderRadius:'var(--r-sm)',
-                border: '1px solid var(--accent)',
-                background: 'var(--accent-dim)',
-                fontSize:'0.68rem', fontWeight:700, color:'var(--accent)',
-                display:'flex', flexDirection:'column', alignItems:'center', gap:4,
-                cursor:'pointer',
-              }}
-            >
-              <span style={{ fontSize:'1rem' }}>⊞</span>
-              Compare
-            </button>
-          </div>
-          )}
-
-          {/* Scrollable lower section — no nav padding when nav is hidden in compare mode */}
-          <div
-            className="scroll"
-            style={{
-              flex:1,
-              paddingBottom: compareMode ? 16 : 'calc(var(--nav-height) + 16px)',
-              paddingTop: compareMode ? 12 : 0,
-            }}
-          >
-
-            {/* Compare grid — always shown once there's at least 1 result.
-                In compare mode the slim header above already says "Compare N options",
-                so we skip the inner uppercase label to save vertical space. */}
-            {!compareMode && (
-              <div ref={compareRef} style={{
-                fontSize:'0.6rem', fontWeight:700, letterSpacing:'0.14em',
-                textTransform:'uppercase', color:'var(--text-3)',
-                padding:'10px 20px 8px',
-                scrollMarginTop: 8,
-              }}>
-                Compare options
+                {isSource ? (
+                  <>
+                    <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 1 }}>{t('app.results.before')}</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 500, color: 'var(--ink)' }}>{t('app.results.original_room')}</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 1 }}>
+                      {active.fabric.collection} · {active.fabric.type}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.1 }}>
+                      {active.fabric.name}
+                    </div>
+                    <div style={{ fontSize: '0.66rem', color: 'var(--text-2)', marginTop: 3 }}>
+                      ₪{active.fabric.price_per_m} / m
+                    </div>
+                  </>
+                )}
               </div>
             )}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, padding:'0 20px' }}>
-              {/* Source always first — tap = update active selection (peek live);
-                  in compare mode the user commits via the "Use this" button in the slim header. */}
-              <SourceThumbnail
-                roomUrl={roomUrl}
-                selected={activeIdx === -1}
-                onSelect={() => setActiveIdx(-1)}
-              />
-              {results.map((r, i) => (
-                <CompareThumbnail
-                  key={r.fabric.id}
-                  result={r}
-                  rank={i}
-                  selected={i === activeIdx}
-                  onSelect={() => setActiveIdx(i)}
-                />
+
+            {/* Swipe dots (clickable nav on desktop too) */}
+            <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 8 }}>
+              <div onClick={() => setActiveIdx(-1)} style={{ width: activeIdx === -1 ? 24 : 10, height: 5, borderRadius: 3, cursor: 'pointer', background: activeIdx === -1 ? 'rgba(255,255,255,.8)' : 'rgba(255,255,255,.3)', transition: 'all var(--duration)' }} />
+              {results.map((_, i) => (
+                <div key={i} onClick={() => setActiveIdx(i)} style={{ width: i === activeIdx ? 24 : 10, height: 5, borderRadius: 3, cursor: 'pointer', background: i === activeIdx ? '#fff' : 'rgba(255,255,255,.4)', transition: 'all var(--duration)' }} />
               ))}
             </div>
+          </div>
 
-            {/* Quote strip — hidden in compare mode (focus is on choosing) */}
-            {!compareMode && fabricMeters && activeResult && (
+          {/* Side panel: actions + fabric switcher */}
+          <div style={{
+            borderInlineStart: '1px solid var(--border)',
+            display: 'flex', flexDirection: 'column',
+            background: 'var(--bg)',
+            overflow: 'hidden',
+          }}>
+            {/* Active fabric info */}
+            {!compareMode && active && (
               <div style={{
-                margin:'14px 20px 0',
-                background:'var(--accent-dim)',
-                border:'1px solid rgba(192,112,80,.2)',
-                borderRadius:'var(--r-md)',
-                padding:'12px 16px',
-                display:'flex', alignItems:'center', justifyContent:'space-between',
+                padding: '16px 16px 12px',
+                borderBottom: '1px solid var(--border)',
+                flexShrink: 0,
               }}>
-                <div>
-                  <div style={{ fontSize:'0.7rem', fontWeight:700, color:'var(--accent)' }}>
-                    Ready to order?
-                  </div>
-                  <div style={{ fontSize:'0.62rem', color:'var(--text-2)', marginTop:2 }}>
-                    Est. {fabricMeters} m · ₪{Math.round(fabricMeters * activeResult.fabric.price_per_m).toLocaleString()}
-                  </div>
+                <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 4 }}>
+                  {active.fabric.collection} · {active.fabric.type}
                 </div>
-                <button style={{
-                  padding:'9px 16px', borderRadius:'var(--r-sm)',
-                  background:'var(--accent)', color:'#fff',
-                  border:'none', fontSize:'0.76rem', fontWeight:700,
-                  cursor:'pointer', letterSpacing:'0.02em',
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', fontWeight: 400, color: 'var(--ink)', lineHeight: 1.1 }}>
+                  {active.fabric.name}
+                </div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ink)', marginTop: 6 }}>
+                  ₪{active.fabric.price_per_m}<span style={{ fontWeight: 400, color: 'var(--text-3)', fontSize: '0.68rem' }}> / m</span>
+                </div>
+              </div>
+            )}
+
+            {!compareMode && actionRow}
+
+            {/* Fabric picker grid */}
+            <div className="scroll" style={{
+              flex: 1,
+              padding: '12px 16px',
+              paddingBottom: 'calc(var(--nav-height) + 12px)',
+              overflowY: 'auto',
+            }}>
+              <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10 }}>
+                {compareMode ? t('app.results.select_to_compare') : t('app.results.compare_options')}
+              </div>
+              {thumbnailGrid(2)}
+
+              {/* Quote strip */}
+              {quoteStrip}
+
+              {/* New room */}
+              {!compareMode && (
+                <div style={{ padding: '14px 0 0' }}>
+                  <button onClick={onNewRoom} style={{
+                    width: '100%', padding: '12px', borderRadius: 'var(--r-md)',
+                    background: 'none', border: '1px solid var(--border)',
+                    color: 'var(--text-2)', fontSize: '0.78rem', fontWeight: 500,
+                    cursor: 'pointer',
+                  }}>
+                    {t('app.results.start_new_room')}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {compareMode && (
+              <div style={{ padding: '12px 16px calc(var(--nav-height) + 12px)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+                <button onClick={() => setCompareMode(false)} style={{
+                  width: '100%', padding: '12px', borderRadius: 'var(--r-md)',
+                  background: 'var(--accent)', color: '#fff',
+                  border: 'none', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
                 }}>
-                  Get quote →
+                  {t('app.results.use_this')} →
                 </button>
               </div>
             )}
+          </div>
+        </div>
 
-            {/* New room — hidden in compare mode */}
+        <Toast visible={toast.visible} message={toast.message} icon={toast.icon} />
+        {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} onMenu={() => setMenuOpen(true)} />}
+      </div>
+    )
+  }
+
+  // ── Mobile / loading / error layout ──────────────────────────────────────────
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)', position: 'relative' }}>
+      <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+      <style>{CSS}</style>
+
+      {/* Header */}
+      {compareMode ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 18px', height: 52,
+          borderBottom: '1px solid var(--border)', flexShrink: 0, background: 'var(--bg)',
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+              {isSource ? t('app.results.before') : t('app.results.compare_peek')}
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {isSource ? t('app.results.original_room') : active?.fabric.name}
+            </div>
+          </div>
+          <button
+            onClick={() => setCompareMode(false)}
+            style={{ padding: '8px 18px', borderRadius: 'var(--r-full)', background: 'var(--accent)', color: '#fff', fontSize: '0.7rem', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+          >
+            {t('app.results.use_this')}
+          </button>
+        </div>
+      ) : (
+        <TopBar title={t('app.results.title')} onBack={onBack} right={statusBadge} />
+      )}
+
+      {/* Loading */}
+      {loading && !error && (
+        <ProgressSteps analysing={analysing} generating={generating} ready={ready} total={total} />
+      )}
+
+      {/* Debug prompt preview */}
+      {promptPreview && !ready && (
+        <PromptPreview preview={promptPreview} onContinue={onContinue} onCancel={onCancelPreview} />
+      )}
+
+      {/* Error with no results */}
+      {!loading && ready === 0 && error && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 }}>
+          <div style={{ fontSize: '2rem' }}>⚠️</div>
+          <div style={{ fontSize: '.82rem', color: 'var(--ink)', fontWeight: 600, textAlign: 'center' }}>{t('app.results.gen_failed')}</div>
+          <div style={{ fontSize: '.72rem', color: 'var(--text-2)', textAlign: 'center' }}>{error}</div>
+          <button onClick={onBack} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 'var(--r-md)', background: 'var(--ink)', color: 'var(--text-on-ink)', border: 'none', fontSize: '.8rem', fontWeight: 600, cursor: 'pointer' }}>
+            {t('app.results.try_again')}
+          </button>
+        </div>
+      )}
+
+      {/* Results view */}
+      {ready > 0 && (
+        <>
+          {!compareMode && generating && <GenBar ready={ready} total={total} />}
+
+          {/* Main image viewer */}
+          {imageViewer(
+            compareMode ? 'min(28vh, 200px)' : 'min(40vh, 290px)',
+            compareMode
+          )}
+
+          {/* Action row */}
+          {!compareMode && actionRow}
+
+          {/* Scrollable lower section */}
+          <div className="scroll" style={{ flex: 1, paddingBottom: compareMode ? 16 : 'calc(var(--nav-height) + 16px)' }}>
             {!compareMode && (
-              <div style={{ padding:'14px 20px 0' }}>
+              <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-3)', padding: '12px 18px 8px' }}>
+                {t('app.results.compare_options')}
+              </div>
+            )}
+            {thumbnailGrid(2)}
+
+            {quoteStrip}
+
+            {!compareMode && (
+              <div style={{ padding: '14px 16px 0' }}>
                 <button onClick={onNewRoom} style={{
-                  width:'100%', padding:'12px', borderRadius:'var(--r-md)',
-                  background:'none', border:'1px solid var(--border)',
-                  color:'var(--text-2)', fontSize:'0.78rem', fontWeight:500,
-                  letterSpacing:'0.04em', cursor:'pointer',
+                  width: '100%', padding: '12px', borderRadius: 'var(--r-md)',
+                  background: 'none', border: '1px solid var(--border)',
+                  color: 'var(--text-2)', fontSize: '0.78rem', fontWeight: 500,
+                  cursor: 'pointer',
                 }}>
                   + Start new room
                 </button>
               </div>
             )}
-
           </div>
         </>
       )}
 
-      {/* BottomNav hidden in compare mode — full grid space wins */}
-      {!compareMode && <BottomNav activeIcon="✨" activeLabel="Results" />}
+      <Toast visible={toast.visible} message={toast.message} icon={toast.icon} />
+      {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} />}
     </div>
   )
 }

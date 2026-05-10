@@ -225,6 +225,150 @@
   gap: 16px;
 }
 
+/* ── Hamburger button — visible only on mobile ────────────────────────────── */
+.site-header__burger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: background var(--duration);
+  flex-shrink: 0;
+}
+.site-header__burger:hover { background: var(--surface-2); }
+
+@media (min-width: 768px) {
+  .site-header__burger { display: none; }
+}
+
+/* ── Mobile menu overlay ─────────────────────────────────────────────────── */
+.site-mobile-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .site-mobile-menu { display: none; }
+}
+
+.site-mobile-menu__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 22, 16, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: smenu-backdrop 0.22s ease both;
+}
+
+.site-mobile-menu__panel {
+  position: relative;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  animation: smenu-slide 0.28s cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+/* Header row */
+.site-mobile-menu__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.site-mobile-menu__close {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--duration);
+}
+.site-mobile-menu__close:hover { background: var(--surface-3); }
+
+/* Nav links */
+.site-mobile-menu__nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.site-mobile-menu__nav a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  opacity: 0;
+  animation: smenu-fadein 0.3s var(--ease-out) both;
+  transition: background var(--duration);
+}
+.site-mobile-menu__nav a:hover { background: var(--surface-2); }
+.site-mobile-menu__nav a:last-child { border-bottom: none; }
+
+.site-mobile-menu__arrow {
+  color: var(--text-4);
+  font-size: 1rem;
+}
+
+/* Footer */
+.site-mobile-menu__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px 24px;
+  border-top: 1px solid var(--border);
+  opacity: 0;
+  animation: smenu-fadein 0.3s 0.25s var(--ease-out) both;
+}
+
+.site-mobile-menu__lang-hint {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.site-mobile-menu__lang-btn {
+  padding: 7px 16px;
+  border-radius: var(--r-full);
+  background: var(--surface-ink);
+  color: var(--text-on-ink);
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: opacity var(--duration);
+}
+.site-mobile-menu__lang-btn:hover { opacity: 0.85; }
+
+/* Animations */
+@keyframes smenu-backdrop { from { opacity: 0 } to { opacity: 1 } }
+@keyframes smenu-slide    { from { transform: translateY(-100%) } to { transform: translateY(0) } }
+@keyframes smenu-fadein   { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: translateY(0) } }
+
 /* ── Lang toggle ──────────────────────────────────────────────────────────── */
 .lang-toggle {
   display: inline-flex;
@@ -331,16 +475,19 @@
   .hero__slide.is-active img        { animation: none; transform: none; }
 }
 
-/* Bottom-up gradient: photo stays vivid up top, headline gets contrast */
+/* Bottom-up gradient: photo stays vivid up top, headline gets contrast.
+   Deeper scrim (0 → 75%) extended to 65% height so even the eyebrow —
+   the topmost text element — sits on a dark enough wash. */
 .hero__overlay {
   position: absolute;
   inset: 0;
   z-index: -1;
   background: linear-gradient(
     to top,
-    rgba(26, 22, 16, 0.55) 0%,
-    rgba(26, 22, 16, 0.25) 35%,
-    rgba(26, 22, 16, 0.05) 60%,
+    rgba(26, 22, 16, 0.75) 0%,
+    rgba(26, 22, 16, 0.60) 20%,
+    rgba(26, 22, 16, 0.38) 45%,
+    rgba(26, 22, 16, 0.10) 65%,
     rgba(26, 22, 16, 0) 100%
   );
 }
@@ -353,16 +500,20 @@
 }
 
 .hero__content .display-1,
-.hero__content .display-2 { color: var(--text-on-ink); }
+.hero__content .display-2 {
+  color: var(--text-on-ink);
+  text-shadow: 0 2px 24px rgba(26, 22, 16, 0.45);
+}
 
 .hero__lede {
   font-family: var(--font-body);
   font-weight: 400;
   font-size: clamp(1rem, 0.5vw + 0.9rem, 1.25rem);
   line-height: 1.6;
-  color: rgba(250, 246, 240, 0.86);
+  color: rgba(250, 246, 240, 0.92);
   max-width: 52ch;
   margin-block: 20px 32px;
+  text-shadow: 0 1px 8px rgba(26, 22, 16, 0.35);
 }
 
 .hero__eyebrow {
@@ -371,8 +522,9 @@
   font-size: 0.75rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(250, 246, 240, 0.85);
+  color: rgba(250, 246, 240, 0.95);
   margin-block-end: 16px;
+  text-shadow: 0 1px 8px rgba(26, 22, 16, 0.50);
 }
 
 .hero__cta-row {
@@ -517,16 +669,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Phone mockup is portrait — cap height so it doesn't dominate desktop. */
-  max-height: 560px;
 }
 
 .veelo-teaser__phone {
   width: 100%;
-  max-width: 320px;
+  max-width: 560px;
   height: auto;
   display: block;
-  filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.45));
+  border-radius: 16px;
+  filter: drop-shadow(0 24px 56px rgba(0, 0, 0, 0.55));
 }
 
 /* ── Contact ──────────────────────────────────────────────────────────────── */
