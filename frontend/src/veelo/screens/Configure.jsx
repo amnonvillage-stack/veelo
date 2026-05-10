@@ -6,6 +6,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import { useDesktop } from '../hooks/useDesktop.js'
 import {
   IconCurtainPleated, IconCurtainEyelet,
   IconCurtainRoman, IconCurtainRoller,
@@ -107,6 +108,7 @@ export default function Configure({
   const canvasRef = useRef(null)
   const imgRef    = useRef(null)
   const dragRef   = useRef(-1)
+  const isDesktop = useDesktop()
 
   const [points,      setPoints]      = useState(initialPoints || [])
   const [curtainType, setCurtainType] = useState(initialType   || '')
@@ -185,27 +187,251 @@ export default function Configure({
 
   const canContinue = roomUrl != null
 
+  // Shared canvas element
+  const canvasEl = (
+    <canvas
+      ref={canvasRef}
+      style={{
+        maxWidth: '100%', maxHeight: '100%',
+        touchAction: 'none', cursor: 'crosshair', display: 'block',
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    />
+  )
+
+  // Step progress indicator for TopBar
+  const stepIndicator = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {[0,1,2].map(i => (
+        <div key={i} style={{
+          height: 4, borderRadius: 2,
+          width: i === 1 ? 24 : 14,
+          background: i <= 1 ? 'var(--accent)' : 'var(--surface-3)',
+          transition: 'width var(--duration)',
+        }} />
+      ))}
+      <span style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginLeft: 4 }}>2 / 3</span>
+    </div>
+  )
+
+  // Controls panel content (shared mobile/desktop)
+  const controlsPanel = (isScrollable) => (
+    <div
+      className={isScrollable ? 'scroll' : undefined}
+      style={{
+        overflowY: isScrollable ? 'auto' : undefined,
+        display: 'flex', flexDirection: 'column',
+      }}
+    >
+      {/* Drag handle (mobile only) */}
+      {!isDesktop && (
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)', margin: '10px auto 16px' }} />
+      )}
+
+      {/* Legend + clear */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: isDesktop ? '16px 24px 10px' : '0 20px 10px' }}>
+        <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.04em' }}>
+          ● Curtain zone
+        </span>
+        {points.length > 0 && (
+          <button
+            onClick={() => setPoints([])}
+            style={{
+              marginLeft: 'auto',
+              fontSize: '0.66rem', color: 'var(--text-3)',
+              background: 'var(--surface-2)', border: '1px solid var(--border)',
+              borderRadius: 'var(--r-full)', padding: '3px 10px',
+              cursor: 'pointer',
+            }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div style={{ height: 1, background: 'var(--border)', margin: isDesktop ? '0 24px 14px' : '0 20px 14px' }} />
+
+      {/* Curtain type */}
+      <div style={{ padding: isDesktop ? '0 24px 14px' : '0 20px 14px' }}>
+        <div style={{
+          fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em',
+          textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
+        }}>
+          Curtain type
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {CURTAIN_TYPES.map(({ value, label, Icon }) => {
+            const active = curtainType === value
+            return (
+              <button
+                key={value}
+                onClick={() => setCurtainType(value)}
+                style={{
+                  padding: '12px 10px',
+                  borderRadius: 'var(--r-md)',
+                  background: active ? 'var(--accent-dim)' : 'var(--surface)',
+                  border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                  color: active ? 'var(--accent)' : 'var(--text-2)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                  cursor: 'pointer',
+                  transition: 'all var(--duration)',
+                  boxShadow: active ? '0 0 0 2px var(--accent-glow)' : 'none',
+                }}
+              >
+                <Icon size={30} />
+                <span style={{ fontSize: '0.7rem', fontWeight: active ? 700 : 500, letterSpacing: '0.04em' }}>
+                  {label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div style={{ height: 1, background: 'var(--border)', margin: isDesktop ? '0 24px 14px' : '0 20px 14px' }} />
+
+      {/* Dimensions (optional) */}
+      <div style={{ padding: isDesktop ? '0 24px 14px' : '0 20px 14px' }}>
+        <div style={{
+          fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em',
+          textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
+        }}>
+          Actual size{' '}
+          <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-4)' }}>
+            (optional)
+          </span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {[
+            { label: 'Width (cm)',      val: czW, set: setCzW, placeholder: 'e.g. 145' },
+            { label: 'Height / drop',   val: czH, set: setCzH, placeholder: 'e.g. 240' },
+          ].map(({ label, val, set, placeholder }) => (
+            <div key={label}>
+              <div style={{
+                fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.1em',
+                textTransform: 'uppercase', color: 'var(--brand-bronze)', marginBottom: 5,
+              }}>
+                {label}
+              </div>
+              <input
+                type="number"
+                value={val}
+                onChange={e => set(e.target.value)}
+                placeholder={placeholder}
+                style={{
+                  width: '100%',
+                  background: 'var(--surface)',
+                  border: '1.5px solid var(--border)',
+                  borderRadius: 'var(--r-sm)',
+                  padding: '9px 12px',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: 'var(--ink)',
+                  outline: 'none',
+                  fontFamily: 'var(--font-body)',
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Continue CTA */}
+      <div style={{ padding: isDesktop ? '4px 24px 24px' : '4px 20px 0' }}>
+        <button
+          onClick={() => onDone(points, curtainType, czW, czH)}
+          disabled={!canContinue}
+          style={{
+            width: '100%', padding: '14px 20px',
+            borderRadius: 'var(--r-md)',
+            background: canContinue ? 'var(--ink)' : 'var(--surface-3)',
+            color: canContinue ? 'var(--text-on-ink)' : 'var(--text-3)',
+            fontSize: '0.85rem', fontWeight: 600,
+            letterSpacing: '0.04em',
+            border: 'none',
+            cursor: canContinue ? 'pointer' : 'not-allowed',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            transition: 'background var(--duration)',
+          }}
+        >
+          <span>Browse Catalogue</span>
+          <span style={{ opacity: .55, fontSize: '1.1rem' }}>→</span>
+        </button>
+      </div>
+    </div>
+  )
+
+  if (isDesktop) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
+        <TopBar title="Mark Curtain Area" onBack={onBack} right={stepIndicator} />
+
+        {/* ── Desktop: canvas left, controls right ── */}
+        <div style={{
+          flex: 1,
+          display: 'grid',
+          gridTemplateColumns: '1fr 380px',
+          overflow: 'hidden',
+        }}>
+          {/* Canvas panel */}
+          <div style={{
+            position: 'relative',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: '#1a1610',
+            overflow: 'hidden',
+          }}>
+            {canvasEl}
+
+            {/* Placement hint pill */}
+            {points.length < 4 && roomUrl && (
+              <div style={{
+                position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)',
+                background: 'rgba(26,22,16,.88)', backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,.12)',
+                borderRadius: 'var(--r-full)',
+                padding: '6px 16px',
+                fontSize: '0.7rem', color: '#fff', whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+              }}>
+                {points.length === 0
+                  ? 'Click the 4 corners of the curtain area'
+                  : `Corner ${points.length} of 4 placed — ${4 - points.length} to go`}
+              </div>
+            )}
+
+            {!roomUrl && (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                color: 'rgba(255,255,255,.3)',
+              }}>
+                <IconCamera size={36} />
+                <span style={{ fontSize: '0.8rem' }}>No room photo loaded</span>
+              </div>
+            )}
+          </div>
+
+          {/* Controls panel */}
+          <div style={{
+            borderLeft: '1px solid var(--border)',
+            background: 'var(--bg)',
+            overflowY: 'auto',
+            paddingBottom: 'calc(var(--nav-height) + 6px)',
+          }}>
+            {controlsPanel(false)}
+          </div>
+        </div>
+
+        <BottomNav activeIcon={IconCamera} activeLabel="Configure" />
+      </div>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
-
-      {/* ── Step header ── */}
-      <TopBar
-        title="Mark Curtain Area"
-        onBack={onBack}
-        right={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {[0,1,2].map(i => (
-              <div key={i} style={{
-                height: 4, borderRadius: 2,
-                width: i === 1 ? 24 : 14,
-                background: i <= 1 ? 'var(--accent)' : 'var(--surface-3)',
-                transition: 'width var(--duration)',
-              }} />
-            ))}
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginLeft: 4 }}>2 / 3</span>
-          </div>
-        }
-      />
+      <TopBar title="Mark Curtain Area" onBack={onBack} right={stepIndicator} />
 
       {/* ── Canvas viewer ── */}
       <div style={{
@@ -218,17 +444,7 @@ export default function Configure({
         background: '#1a1610',
         overflow: 'hidden',
       }}>
-        <canvas
-          ref={canvasRef}
-          style={{
-            maxWidth: '100%', maxHeight: '100%',
-            touchAction: 'none', cursor: 'crosshair', display: 'block',
-          }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        />
+        {canvasEl}
 
         {/* Placement hint pill */}
         {points.length < 4 && roomUrl && (
@@ -267,139 +483,7 @@ export default function Configure({
         paddingBottom: 'calc(var(--nav-height) + 6px)',
         overflowY: 'auto',
       }}>
-        {/* Drag handle */}
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)', margin: '10px auto 16px' }} />
-
-        {/* Legend + clear */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '0 20px 10px' }}>
-          <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.04em' }}>
-            ● Curtain zone
-          </span>
-          {points.length > 0 && (
-            <button
-              onClick={() => setPoints([])}
-              style={{
-                marginLeft: 'auto',
-                fontSize: '0.66rem', color: 'var(--text-3)',
-                background: 'var(--surface-2)', border: '1px solid var(--border)',
-                borderRadius: 'var(--r-full)', padding: '3px 10px',
-                cursor: 'pointer',
-              }}
-            >
-              Clear
-            </button>
-          )}
-        </div>
-
-        <div style={{ height: 1, background: 'var(--border)', margin: '0 20px 14px' }} />
-
-        {/* Curtain type — 2 × 2 icon card grid */}
-        <div style={{ padding: '0 20px 14px' }}>
-          <div style={{
-            fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em',
-            textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
-          }}>
-            Curtain type
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {CURTAIN_TYPES.map(({ value, label, Icon }) => {
-              const active = curtainType === value
-              return (
-                <button
-                  key={value}
-                  onClick={() => setCurtainType(value)}
-                  style={{
-                    padding: '12px 10px',
-                    borderRadius: 'var(--r-md)',
-                    background: active ? 'var(--accent-dim)' : 'var(--surface)',
-                    border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                    color: active ? 'var(--accent)' : 'var(--text-2)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                    cursor: 'pointer',
-                    transition: 'all var(--duration)',
-                    boxShadow: active ? '0 0 0 2px var(--accent-glow)' : 'none',
-                  }}
-                >
-                  <Icon size={30} />
-                  <span style={{ fontSize: '0.7rem', fontWeight: active ? 700 : 500, letterSpacing: '0.04em' }}>
-                    {label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div style={{ height: 1, background: 'var(--border)', margin: '0 20px 14px' }} />
-
-        {/* Dimensions (optional) */}
-        <div style={{ padding: '0 20px 14px' }}>
-          <div style={{
-            fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em',
-            textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
-          }}>
-            Actual size{' '}
-            <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-4)' }}>
-              (optional)
-            </span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {[
-              { label: 'Width (cm)',      val: czW, set: setCzW, placeholder: 'e.g. 145' },
-              { label: 'Height / drop',   val: czH, set: setCzH, placeholder: 'e.g. 240' },
-            ].map(({ label, val, set, placeholder }) => (
-              <div key={label}>
-                <div style={{
-                  fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.1em',
-                  textTransform: 'uppercase', color: 'var(--brand-bronze)', marginBottom: 5,
-                }}>
-                  {label}
-                </div>
-                <input
-                  type="number"
-                  value={val}
-                  onChange={e => set(e.target.value)}
-                  placeholder={placeholder}
-                  style={{
-                    width: '100%',
-                    background: 'var(--surface)',
-                    border: '1.5px solid var(--border)',
-                    borderRadius: 'var(--r-sm)',
-                    padding: '9px 12px',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    color: 'var(--ink)',
-                    outline: 'none',
-                    fontFamily: 'var(--font-body)',
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Continue CTA */}
-        <div style={{ padding: '4px 20px 0' }}>
-          <button
-            onClick={() => onDone(points, curtainType, czW, czH)}
-            disabled={!canContinue}
-            style={{
-              width: '100%', padding: '14px 20px',
-              borderRadius: 'var(--r-md)',
-              background: canContinue ? 'var(--ink)' : 'var(--surface-3)',
-              color: canContinue ? 'var(--text-on-ink)' : 'var(--text-3)',
-              fontSize: '0.85rem', fontWeight: 600,
-              letterSpacing: '0.04em',
-              border: 'none',
-              cursor: canContinue ? 'pointer' : 'not-allowed',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              transition: 'background var(--duration)',
-            }}
-          >
-            <span>Browse Catalogue</span>
-            <span style={{ opacity: .55, fontSize: '1.1rem' }}>→</span>
-          </button>
-        </div>
+        {controlsPanel(false)}
       </div>
 
       <BottomNav activeIcon={IconCamera} activeLabel="Configure" />

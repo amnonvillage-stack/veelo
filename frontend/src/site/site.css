@@ -517,16 +517,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Phone mockup is portrait — cap height so it doesn't dominate desktop. */
-  max-height: 560px;
 }
 
 .veelo-teaser__phone {
   width: 100%;
-  max-width: 320px;
+  max-width: 560px;
   height: auto;
   display: block;
-  filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.45));
+  border-radius: 16px;
+  filter: drop-shadow(0 24px 56px rgba(0, 0, 0, 0.55));
 }
 
 /* ── Contact ──────────────────────────────────────────────────────────────── */

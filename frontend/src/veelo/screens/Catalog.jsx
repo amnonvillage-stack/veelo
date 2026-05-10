@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react'
 import TopBar    from '../components/TopBar.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import { useDesktop } from '../hooks/useDesktop.js'
 import { IconSearch, IconX, IconCheck, IconScissors, IconSparkles } from '../components/icons.jsx'
 
 const DENSITY_LABELS = {
@@ -179,6 +180,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
   const [filter,   setFilter]   = useState(curtainType || '')
   const [search,   setSearch]   = useState('')
   const [selected, setSelected] = useState([])
+  const isDesktop = useDesktop()
 
   useEffect(() => {
     fetch('/catalog')
@@ -207,17 +209,261 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
 
   const isSelected = (p) => selected.some(s => s.id === p.id)
 
+  // Search input (shared)
+  const searchInput = (
+    <div style={{
+      background: 'var(--surface)',
+      border: '1.5px solid var(--border)',
+      borderRadius: 'var(--r-md)',
+      padding: '0 14px',
+      display: 'flex', alignItems: 'center', gap: 10,
+      height: 42,
+    }}>
+      <span style={{ color: 'var(--text-3)', display: 'flex', alignItems: 'center' }}>
+        <IconSearch size={16} />
+      </span>
+      <input
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Search fabrics…"
+        style={{
+          flex: 1, background: 'none', border: 'none', outline: 'none',
+          fontSize: '0.85rem', color: 'var(--ink)',
+          fontFamily: 'var(--font-body)',
+        }}
+      />
+      {search && (
+        <button onClick={() => setSearch('')} style={{
+          background: 'none', border: 'none', color: 'var(--text-3)',
+          cursor: 'pointer', display: 'flex', padding: 2,
+        }}>
+          <IconX size={14} />
+        </button>
+      )}
+    </div>
+  )
+
+  // Filter chips (shared)
+  const filterChips = (vertical) => (
+    <div style={{
+      display: 'flex',
+      flexDirection: vertical ? 'column' : 'row',
+      gap: 7,
+      padding: vertical ? '4px 0' : undefined,
+    }}>
+      {TYPE_FILTERS.map(t => {
+        const active = filter === t.value
+        return (
+          <button
+            key={t.value}
+            onClick={() => setFilter(t.value)}
+            style={{
+              flexShrink: 0,
+              padding: vertical ? '8px 12px' : '5px 14px',
+              borderRadius: 'var(--r-full)',
+              fontSize: '0.7rem',
+              fontWeight: active ? 700 : 500,
+              background: active ? 'var(--accent)' : 'var(--surface)',
+              border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+              color: active ? '#fff' : 'var(--text-2)',
+              transition: 'all var(--duration)',
+              cursor: 'pointer',
+              textAlign: vertical ? 'left' : 'center',
+            }}
+          >
+            {t.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  // Visualise FAB
+  const visualiseFab = (
+    selected.length > 0 && (
+      <div style={{
+        position: 'absolute',
+        bottom: 'calc(var(--nav-height) + 12px)',
+        left: 16, right: 16,
+        zIndex: 40,
+        animation: 'fab-in 0.22s var(--ease-out) both',
+      }}>
+        <button
+          onClick={() => onGenerate(selected)}
+          style={{
+            width: '100%',
+            padding: '15px 20px',
+            borderRadius: 'var(--r-xl)',
+            background: 'var(--ink)',
+            color: 'var(--text-on-ink)',
+            border: 'none',
+            fontSize: '0.88rem',
+            fontWeight: 600,
+            letterSpacing: '0.03em',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            boxShadow: 'var(--shadow-lg)',
+            cursor: 'pointer',
+          }}
+        >
+          <span>Visualise {selected.length} {selected.length === 1 ? 'fabric' : 'fabrics'}</span>
+          <div style={{
+            width: 32, height: 32, borderRadius: '50%',
+            background: 'var(--accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff',
+          }}>
+            <IconSparkles size={16} strokeWidth={1.5} />
+          </div>
+        </button>
+      </div>
+    )
+  )
+
+  if (isDesktop) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
+        <style>{`
+          @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+          @keyframes fab-in  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        `}</style>
+
+        <TopBar
+          title="Choose Fabric"
+          onBack={onBack}
+          right={
+            <span style={{
+              fontSize: '0.68rem', fontWeight: 700,
+              color: 'var(--text-3)',
+              background: 'var(--surface-2)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--r-full)',
+              padding: '3px 10px',
+            }}>
+              {visible.length}
+            </span>
+          }
+        />
+
+        {/* ── Desktop: sidebar filters + main grid ── */}
+        <div style={{
+          flex: 1,
+          display: 'grid',
+          gridTemplateColumns: '220px 1fr',
+          overflow: 'hidden',
+        }}>
+          {/* Sidebar */}
+          <div className="scroll" style={{
+            borderRight: '1px solid var(--border)',
+            padding: '20px 16px',
+            paddingBottom: 'calc(var(--nav-height) + 16px)',
+            overflowY: 'auto',
+            display: 'flex', flexDirection: 'column', gap: 16,
+          }}>
+            {searchInput}
+
+            <div>
+              <div style={{
+                fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.14em',
+                textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
+              }}>
+                Type
+              </div>
+              {filterChips(true)}
+            </div>
+
+            {selected.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{
+                  fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.14em',
+                  textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
+                }}>
+                  Selected ({selected.length}/4)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {selected.map(p => (
+                    <div key={p.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      background: 'var(--accent-dim)',
+                      border: '1px solid rgba(192,112,80,.2)',
+                      borderRadius: 'var(--r-sm)',
+                      padding: '6px 10px',
+                    }}>
+                      <div style={{
+                        width: 20, height: 20, borderRadius: 4, flexShrink: 0,
+                        background: SWATCH_COLORS[p.color_hex] || p.color_hex,
+                      }} />
+                      <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--ink)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.name}
+                      </span>
+                      <button onClick={() => toggle(p)} style={{ color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                        <IconX size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => onGenerate(selected)}
+                  style={{
+                    width: '100%', marginTop: 12,
+                    padding: '13px 16px',
+                    borderRadius: 'var(--r-md)',
+                    background: 'var(--ink)',
+                    color: 'var(--text-on-ink)',
+                    border: 'none',
+                    fontSize: '0.82rem', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>Visualise {selected.length}</span>
+                  <IconSparkles size={16} strokeWidth={1.5} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Fabric grid */}
+          <div className="scroll" style={{
+            padding: '20px 24px',
+            paddingBottom: 'calc(var(--nav-height) + 20px)',
+            overflowY: 'auto',
+          }}>
+            {!loading && visible.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '80px 0' }}>
+                <div style={{ color: 'var(--text-3)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+                  <IconScissors size={36} />
+                </div>
+                <div style={{ fontSize: '.85rem', fontWeight: 600, color: 'var(--text-2)' }}>No fabrics found</div>
+                <div style={{ fontSize: '.75rem', color: 'var(--text-3)', marginTop: 4 }}>Try a different search or filter</div>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+              {loading
+                ? Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)
+                : visible.map(p => (
+                    <FabricCard
+                      key={p.id}
+                      product={p}
+                      selected={isSelected(p)}
+                      onToggle={toggle}
+                    />
+                  ))
+              }
+            </div>
+          </div>
+        </div>
+
+        <BottomNav activeIcon={IconScissors} activeLabel="Fabrics" />
+      </div>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
       <style>{`
-        @keyframes shimmer {
-          0%   { background-position:  200% 0; }
-          100% { background-position: -200% 0; }
-        }
-        @keyframes fab-in {
-          from { opacity:0; transform:translateY(12px); }
-          to   { opacity:1; transform:translateY(0);    }
-        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        @keyframes fab-in  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
 
       <TopBar
@@ -240,63 +486,13 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
       />
 
       {/* Search */}
-      <div style={{
-        margin: '12px 16px 0',
-        background: 'var(--surface)',
-        border: '1.5px solid var(--border)',
-        borderRadius: 'var(--r-md)',
-        padding: '0 14px',
-        display: 'flex', alignItems: 'center', gap: 10,
-        height: 42,
-      }}>
-        <span style={{ color: 'var(--text-3)', display: 'flex', alignItems: 'center' }}>
-          <IconSearch size={16} />
-        </span>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search fabrics…"
-          style={{
-            flex: 1, background: 'none', border: 'none', outline: 'none',
-            fontSize: '0.85rem', color: 'var(--ink)',
-            fontFamily: 'var(--font-body)',
-          }}
-        />
-        {search && (
-          <button onClick={() => setSearch('')} style={{
-            background: 'none', border: 'none', color: 'var(--text-3)',
-            cursor: 'pointer', display: 'flex', padding: 2,
-          }}>
-            <IconX size={14} />
-          </button>
-        )}
+      <div style={{ margin: '12px 16px 0' }}>
+        {searchInput}
       </div>
 
       {/* Type filter chips */}
       <div className="scroll-x" style={{ display: 'flex', gap: 7, padding: '10px 16px' }}>
-        {TYPE_FILTERS.map(t => {
-          const active = filter === t.value
-          return (
-            <button
-              key={t.value}
-              onClick={() => setFilter(t.value)}
-              style={{
-                flexShrink: 0,
-                padding: '5px 14px',
-                borderRadius: 'var(--r-full)',
-                fontSize: '0.7rem',
-                fontWeight: active ? 700 : 500,
-                background: active ? 'var(--accent)' : 'var(--surface)',
-                border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                color: active ? '#fff' : 'var(--text-2)',
-                transition: 'all var(--duration)',
-                cursor: 'pointer',
-              }}
-            >
-              {t.label}
-            </button>
-          )
-        })}
+        {filterChips(false)}
       </div>
 
       <div style={{ height: 1, background: 'var(--border)', margin: '0 16px', flexShrink: 0 }} />
@@ -311,7 +507,6 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
           transition: 'padding-bottom 0.3s var(--ease)',
         }}
       >
-        {/* Empty state */}
         {!loading && visible.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
             <div style={{ color: 'var(--text-3)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
@@ -337,44 +532,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
         </div>
       </div>
 
-      {/* Visualise FAB */}
-      {selected.length > 0 && (
-        <div style={{
-          position: 'absolute',
-          bottom: 'calc(var(--nav-height) + 12px)',
-          left: 16, right: 16,
-          zIndex: 40,
-          animation: 'fab-in 0.22s var(--ease-out) both',
-        }}>
-          <button
-            onClick={() => onGenerate(selected)}
-            style={{
-              width: '100%',
-              padding: '15px 20px',
-              borderRadius: 'var(--r-xl)',
-              background: 'var(--ink)',
-              color: 'var(--text-on-ink)',
-              border: 'none',
-              fontSize: '0.88rem',
-              fontWeight: 600,
-              letterSpacing: '0.03em',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              boxShadow: 'var(--shadow-lg)',
-              cursor: 'pointer',
-            }}
-          >
-            <span>Visualise {selected.length} {selected.length === 1 ? 'fabric' : 'fabrics'}</span>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%',
-              background: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff',
-            }}>
-              <IconSparkles size={16} strokeWidth={1.5} />
-            </div>
-          </button>
-        </div>
-      )}
+      {visualiseFab}
 
       <BottomNav activeIcon={IconScissors} activeLabel="Fabrics" />
     </div>

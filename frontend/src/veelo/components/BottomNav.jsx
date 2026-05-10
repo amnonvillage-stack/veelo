@@ -1,5 +1,8 @@
 // ── BottomNav ─────────────────────────────────────────────────────────────────
 // Three-item bottom tab bar shared by all Veelo screens.
+// On mobile: full-width bar pinned to bottom.
+// On desktop: centered pill bar floating above the viewport edge.
+//
 // Props:
 //   activeIcon   — SVG icon component for the centre/active tab
 //   activeLabel  — label for the centre tab
@@ -7,10 +10,54 @@
 // The Home tab always navigates to '/' (Vicky Israel site) via React Router.
 
 import { useNavigate } from 'react-router-dom'
+import { useDesktop } from '../hooks/useDesktop.js'
 import { IconHome, IconMenu } from './icons.jsx'
 
 export default function BottomNav({ activeIcon: ActiveIcon, activeLabel }) {
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const isDesktop = useDesktop()
+
+  if (isDesktop) {
+    return (
+      <div style={{
+        position: 'absolute',
+        bottom: 16,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 50,
+        display: 'flex',
+        gap: 4,
+        background: 'rgba(250,246,240,0.92)',
+        backdropFilter: 'blur(14px)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--r-full)',
+        padding: '6px 8px',
+        boxShadow: 'var(--shadow-md)',
+      }}>
+        <NavItem
+          label="Home"
+          icon={<IconHome size={18} />}
+          active={false}
+          onClick={() => navigate('/')}
+          pill
+        />
+        <NavItem
+          label={activeLabel}
+          icon={ActiveIcon ? <ActiveIcon size={18} /> : null}
+          active={true}
+          onClick={null}
+          pill
+        />
+        <NavItem
+          label="Menu"
+          icon={<IconMenu size={18} />}
+          active={false}
+          onClick={null}
+          pill
+        />
+      </div>
+    )
+  }
 
   return (
     <div style={{
@@ -25,36 +72,56 @@ export default function BottomNav({ activeIcon: ActiveIcon, activeLabel }) {
       padding: '0 0 env(safe-area-inset-bottom, 12px)',
       zIndex: 50,
     }}>
-
-      {/* Home → Vicky Israel site */}
       <NavItem
         label="Home"
         icon={<IconHome size={22} />}
         active={false}
         onClick={() => navigate('/')}
       />
-
-      {/* Current screen (active) */}
       <NavItem
         label={activeLabel}
         icon={ActiveIcon ? <ActiveIcon size={22} /> : null}
         active={true}
         onClick={null}
       />
-
-      {/* Menu (future drawer) */}
       <NavItem
         label="Menu"
         icon={<IconMenu size={22} />}
         active={false}
         onClick={null}
       />
-
     </div>
   )
 }
 
-function NavItem({ label, icon, active, onClick }) {
+function NavItem({ label, icon, active, onClick, pill }) {
+  if (pill) {
+    return (
+      <button
+        onClick={onClick}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '7px 14px',
+          borderRadius: 'var(--r-full)',
+          background: active ? 'var(--accent)' : 'transparent',
+          color: active ? '#fff' : 'var(--text-3)',
+          border: 'none',
+          cursor: onClick ? 'pointer' : 'default',
+          transition: 'all var(--duration)',
+          fontSize: '0.72rem',
+          fontWeight: active ? 700 : 500,
+          letterSpacing: '0.04em',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {icon}
+        {label}
+      </button>
+    )
+  }
+
   return (
     <button
       onClick={onClick}
