@@ -49,6 +49,12 @@ export default function SiteFooter() {
           </a>
         </div>
       </div>
+
+      <div className="container site-footer__legal">
+        <a href="/privacy.html">{t('footer.privacy')}</a>
+        <span aria-hidden="true">·</span>
+        <a href="/terms.html">{t('footer.terms')}</a>
+      </div>
     </footer>
   )
 }

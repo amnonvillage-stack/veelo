@@ -50,6 +50,15 @@ export default function ContactBlock() {
           </div>
 
           <p className="contact__hint">{t('contact.whatsapp_hint')}</p>
+
+          <p className="contact__consent">
+            {t('contact.consent')}{' '}
+            <a href="/privacy.html">{t('footer.privacy')}</a>
+            {' '}
+            <span aria-hidden="true">&amp;</span>
+            {' '}
+            <a href="/terms.html">{t('footer.terms')}</a>.
+          </p>
         </div>
       </div>
     </section>
