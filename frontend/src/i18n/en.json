@@ -37,11 +37,14 @@
     "lede": "Every home starts with a conversation. Send an email or a WhatsApp message and we'll set up an introduction.",
     "email_cta": "Send an email",
     "whatsapp_cta": "Message on WhatsApp",
-    "whatsapp_hint": "WhatsApp also welcome"
+    "whatsapp_hint": "WhatsApp also welcome",
+    "consent": "By reaching out you agree to our"
   },
   "footer": {
     "tagline": "Textile & design studio",
-    "rights": "© 2026 Vicky Israel · All rights reserved"
+    "rights": "© 2026 Vicky Israel · All rights reserved",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Use"
   },
   "lang": {
     "toggle_to_en": "EN",
@@ -67,6 +70,7 @@
       "vis_one": "visualisation",
       "vis_many": "visualisations",
       "new_vis": "New visualisation",
+      "privacy_note": "Your photo is used only to generate your simulation.",
       "tagline": "See your window,",
       "tagline_em": "transformed",
       "tagline_sub": "Upload a photo of any room and preview photo-realistic curtains — instantly.",

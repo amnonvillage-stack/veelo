@@ -783,6 +783,18 @@
   color: var(--text-3);
 }
 
+.contact__consent {
+  margin-block-start: 12px;
+  font-size: 0.75rem;
+  color: var(--text-4);
+}
+
+.contact__consent a {
+  color: var(--text-3);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* ── Footer ───────────────────────────────────────────────────────────────── */
 .site-footer {
   background: var(--surface-2);
@@ -842,6 +854,29 @@
 .site-footer__rights {
   font-size: 0.8125rem;
   color: var(--text-3);
+}
+
+.site-footer__legal {
+  margin-block-start: 16px;
+  padding-block-start: 16px;
+  border-block-start: 1px solid var(--border);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--text-4);
+}
+
+.site-footer__legal a {
+  color: var(--text-3);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+.site-footer__legal a:hover {
+  text-decoration: underline;
+  color: var(--brand-bronze);
 }
 
 /* ── RTL-aware forward arrow ──────────────────────────────────────────────── */

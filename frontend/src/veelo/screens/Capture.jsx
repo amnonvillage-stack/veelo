@@ -517,6 +517,13 @@ export default function Capture({ onRoomPicked, onAdmin }) {
             overflow: 'hidden',
           }}>
             <UploadZone {...zoneProps} />
+            <p style={{ fontSize: '0.68rem', color: 'var(--text-4)', textAlign: 'center', lineHeight: 1.5 }}>
+              {t('app.capture.privacy_note')}{' '}
+              <a href="/privacy.html" style={{ color: 'var(--text-3)', textDecoration: 'underline' }}
+                target="_blank" rel="noopener noreferrer">
+                {t('footer.privacy')}
+              </a>
+            </p>
           </div>
 
           {/* Column 2: tip + saved */}
@@ -561,9 +568,16 @@ export default function Capture({ onRoomPicked, onAdmin }) {
           padding: '0 18px',
           paddingBottom: 'calc(var(--nav-height) + 16px)',
         }}>
-          <div style={{ marginBottom: 14, paddingTop: 14 }}>
+          <div style={{ marginBottom: 6, paddingTop: 14 }}>
             <UploadZone {...zoneProps} />
           </div>
+          <p style={{ fontSize: '0.68rem', color: 'var(--text-4)', textAlign: 'center', lineHeight: 1.5, marginBottom: 14 }}>
+            {t('app.capture.privacy_note')}{' '}
+            <a href="/privacy.html" style={{ color: 'var(--text-3)', textDecoration: 'underline' }}
+              target="_blank" rel="noopener noreferrer">
+              {t('footer.privacy')}
+            </a>
+          </p>
 
           <div style={{ marginBottom: 20 }}>
             <TipCard />
