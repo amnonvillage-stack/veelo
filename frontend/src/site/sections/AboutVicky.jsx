@@ -4,19 +4,19 @@ import { useT } from '../../i18n/useT.js'
 //  · centered eyebrow above the section
 //  · two-column body: copy left, 3-photo collage right
 //  · collage = 1 large left tile (portrait of Vicky) + 2 smaller stacked tiles
+//  · horizontal scroll strip below — PH04 photos (snap-scroll, fade edges)
 //
 // Photo provenance
 // ────────────────
 //   tile-portrait → PH02/(10)  (Vicky at the showroom — the relationship shot)
 //   tile-fabrics  → PH03/(7)   (folded magenta/orange textile stack — material)
 //   tile-styling  → PH03/(9)   (travertine bench + flowing sheers — finished aesthetic)
-//
-// Together these tell a "selecting → materials → finished work" story. Swap
-// the two right tiles when more "Vicky at work" photography is available.
+//   strip photos  → PH04       (4 additional work/space photos)
 //
 // RTL note: CSS Grid columns mirror automatically when dir="rtl" is set on
 // the document, so on Hebrew the copy moves to the right and the collage to
-// the left without per-locale overrides.
+// the left without per-locale overrides. The scroll strip direction follows
+// the document writing direction via CSS logical properties.
 
 const TILES = [
   {
@@ -25,7 +25,6 @@ const TILES = [
     webp: '/assets/site/about/tile-portrait.webp',
     jpg:  '/assets/site/about/tile-portrait.jpg',
     altKey: 'about.image_alt',
-    // Vicky's face is in the upper half of this frame; anchor higher.
     position: 'center 30%',
   },
   {
@@ -34,8 +33,6 @@ const TILES = [
     webp: '/assets/site/about/tile-fabrics.webp',
     jpg:  '/assets/site/about/tile-fabrics.jpg',
     altKey: 'about.tile_fabrics_alt',
-    // Source is portrait; centre crop to a square loses the hand. Anchor low
-    // so the hand + folded stack stay visible.
     position: 'center 75%',
   },
   {
@@ -46,6 +43,14 @@ const TILES = [
     altKey: 'about.tile_styling_alt',
     position: 'center center',
   },
+]
+
+// PH04 horizontal strip — add / remove entries freely; layout adapts.
+const STRIP = [
+  { src: '/assets/site/about/ph04-a.webp', alt: 'Vicky interior design work' },
+  { src: '/assets/site/about/ph04-b.webp', alt: 'Curtain detail' },
+  { src: '/assets/site/about/ph04-c.webp', alt: 'Fabric selection' },
+  { src: '/assets/site/about/ph04-d.jpg',  alt: 'Design studio' },
 ]
 
 export default function AboutVicky() {
@@ -82,6 +87,22 @@ export default function AboutVicky() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Horizontal scroll strip — bleeds edge-to-edge, independent of .container */}
+      <div className="about__strip-wrap" aria-label="More photos">
+        <ul className="about__strip" role="list">
+          {STRIP.map((photo, i) => (
+            <li key={i} className="about__strip-item">
+              <img
+                src={photo.src}
+                alt={photo.alt}
+                loading="lazy"
+                decoding="async"
+              />
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   )

@@ -632,6 +632,84 @@
   .about__tile--styling  { aspect-ratio: 1 / 1; }
 }
 
+/* ── About photo strip (horizontal scroll) ────────────────────────────────
+   Bleeds full viewport width so photos feel immersive. Fades at both edges
+   via a mask-image gradient so the "scroll to see more" affordance is clear.
+   CSS scroll-snap keeps cards aligned on swipe. No scrollbar shown on touch;
+   on desktop a thin styled bar appears so power users know it's scrollable.  */
+.about__strip-wrap {
+  margin-block-start: 48px;
+  /* Strip lives outside .container, so it's already full-width.
+     Fade left/right so "more to scroll" is legible. */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 6%,
+    black 94%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 6%,
+    black 94%,
+    transparent 100%
+  );
+}
+
+.about__strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-inline: 20px;
+  padding-block: 8px 16px;
+  list-style: none;
+  margin: 0;
+  /* Slim scrollbar on desktop */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+.about__strip::-webkit-scrollbar { height: 4px; }
+.about__strip::-webkit-scrollbar-track { background: transparent; }
+.about__strip::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.about__strip-item {
+  flex: 0 0 auto;
+  width: clamp(200px, 38vw, 340px);
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  scroll-snap-align: start;
+  background: linear-gradient(135deg, #f5ebd9 0%, #e8d4b5 100%);
+}
+
+.about__strip-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  transition: transform 0.4s ease;
+}
+
+.about__strip-item:hover img {
+  transform: scale(1.04);
+}
+
+@media (max-width: 767px) {
+  .about__strip-item {
+    width: clamp(160px, 70vw, 260px);
+    aspect-ratio: 3 / 4;
+  }
+}
+
 /* ── Veelo teaser ─────────────────────────────────────────────────────────── */
 .veelo-teaser {
   background: var(--surface-ink);
