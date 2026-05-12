@@ -16,15 +16,14 @@ PYTHON="${PYTHON:-python3}"
 if [ ! -d "$VENV_DIR" ]; then
   echo "→ Creating virtualenv at $VENV_DIR"
   "$PYTHON" -m venv "$VENV_DIR"
-  # shellcheck disable=SC1091
-  source "$VENV_DIR/bin/activate"
-  echo "→ Installing dependencies"
-  pip install --upgrade pip
-  pip install -r "$SCRIPT_DIR/requirements.txt"
-else
-  # shellcheck disable=SC1091
-  source "$VENV_DIR/bin/activate"
 fi
+
+# shellcheck disable=SC1091
+source "$VENV_DIR/bin/activate"
+
+# Always sync deps so new packages in requirements.txt are picked up automatically
+pip install --quiet --upgrade pip
+pip install --quiet -r "$SCRIPT_DIR/requirements.txt"
 
 if [ ! -f "$SCRIPT_DIR/.env" ]; then
   echo "⚠️  $SCRIPT_DIR/.env not found. Copy .env.example and fill in GEMINI_API_KEY."

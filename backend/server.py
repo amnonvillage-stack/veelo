@@ -19,6 +19,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+# ── Security constants ────────────────────────────────────────────────────────
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024   # 10 MB
+# Magic-byte prefixes for common image formats the browser may produce.
+# WebP: RIFF....WEBP — needs a two-part check (see validate_image_upload).
+_IMAGE_MAGIC_PREFIXES = (
+    b"\xff\xd8\xff",   # JPEG
+    b"\x89PNG",        # PNG
+    b"RIFF",           # WebP / other RIFF (narrowed below)
+    b"\x00\x00\x00",   # HEIF/HEIC/MP4-family (ftyp box)
+    b"GIF8",           # GIF
+)
+MAX_FIELD_LEN = 500   # max chars for any text form field
+
 # ── Load .env ─────────────────────────────────────────────────────────────────
 env_file = Path(__file__).parent / ".env"
 if env_file.exists():
@@ -28,16 +41,26 @@ if env_file.exists():
             os.environ.setdefault(k.strip(), v.strip())
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+ADMIN_KEY      = os.environ.get("ADMIN_KEY", "")        # required for catalog write ops
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:4173").split(",")
+DEBUG = os.environ.get("DEBUG", "").lower() in ("1", "true", "yes")
 
 # ── Dependency check ──────────────────────────────────────────────────────────
 MISSING = []
 try:
-    from fastapi import FastAPI, Form, UploadFile, File
+    from fastapi import FastAPI, Form, UploadFile, File, Request, HTTPException, Header
     from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
     from fastapi.staticfiles import StaticFiles
+    from fastapi.middleware.cors import CORSMiddleware
     import uvicorn
 except ImportError:
     MISSING.append("fastapi uvicorn python-multipart")
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+except ImportError:
+    MISSING.append("slowapi")
 try:
     from google import genai
     from google.genai import types
@@ -56,6 +79,57 @@ if not GEMINI_API_KEY:
     sys.exit(1)
 
 client = genai.Client(api_key=GEMINI_API_KEY)
+
+# ── Upload validation helper ──────────────────────────────────────────────────
+async def validate_image_upload(upload: UploadFile, field_name: str = "image") -> bytes:
+    """
+    Read upload, enforce size cap, then validate it is a real image.
+
+    Strategy (defence in depth without over-restricting browser formats):
+      1. Size cap — reject before any parsing.
+      2. Magic-byte fast-path — pass known-good formats immediately.
+      3. Pillow fallback — if bytes don't match a known magic prefix, try
+         opening with Pillow; if it succeeds it's a real image, if it
+         raises it's junk. This handles AVIF, TIFF, BMP, etc. without
+         maintaining an exhaustive allowlist.
+    """
+    data = await upload.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"{field_name}: file too large (max {MAX_UPLOAD_BYTES // 1_048_576} MB)"
+        )
+    # Fast-path: known magic prefixes (covers JPEG, PNG, WebP, HEIC, GIF)
+    magic_ok = any(data[:len(pfx)] == pfx for pfx in _IMAGE_MAGIC_PREFIXES)
+    if not magic_ok:
+        # Fallback: let Pillow decide — it's the authoritative decoder we use anyway
+        try:
+            Image.open(io.BytesIO(data)).verify()
+        except Exception:
+            raise HTTPException(
+                status_code=415,
+                detail=f"{field_name}: file does not appear to be a valid image"
+            )
+    return data
+
+# ── Admin auth helper ─────────────────────────────────────────────────────────
+def require_admin(x_admin_key: Optional[str]) -> None:
+    """Raise 401/403 if the request doesn't carry a valid admin key."""
+    if not ADMIN_KEY:
+        # If ADMIN_KEY isn't configured, block all writes rather than allow all —
+        # fail secure. Operator must set ADMIN_KEY in .env to enable catalog edits.
+        raise HTTPException(
+            status_code=503,
+            detail="Admin key not configured on server. Set ADMIN_KEY in .env."
+        )
+    if x_admin_key != ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+
+# ── Safe error response (no internal details in production) ──────────────────
+def _err(e: Exception, status: int = 500) -> JSONResponse:
+    import traceback; traceback.print_exc()
+    msg = str(e) if DEBUG else "An internal error occurred"
+    return JSONResponse({"error": msg}, status_code=status)
 
 # Try candidate model names — Google renames these periodically
 _MODEL_CANDIDATES = [
@@ -493,7 +567,18 @@ def _build_prompt_from_analysis(
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type", "X-Admin-Key"],
+)
 
 SWATCHES_DIR = CATALOG_DIR / "swatches"
 SWATCHES_DIR.mkdir(parents=True, exist_ok=True)
@@ -514,9 +599,15 @@ def _write_catalog(products):
 @app.get("/catalog/swatches/{filename}")
 def get_swatch(filename: str):
     """Serve swatch images — plain GET route, no StaticFiles mount conflicts."""
-    f = SWATCHES_DIR / filename
+    # Guard against path traversal: only simple filenames (no slashes or dots leading up)
+    if not re.fullmatch(r"[A-Za-z0-9_\-]+\.[a-z]{2,5}", filename):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    f = (SWATCHES_DIR / filename).resolve()
+    # Ensure the resolved path is still inside SWATCHES_DIR
+    if not str(f).startswith(str(SWATCHES_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid filename")
     if not f.exists():
-        return JSONResponse({"error": f"swatch '{filename}' not found"}, status_code=404)
+        raise HTTPException(status_code=404, detail=f"Swatch not found")
     return FileResponse(str(f))
 
 @app.get("/catalog")
@@ -528,24 +619,32 @@ def catalog_list(type: Optional[str] = None):
             products = [p for p in products if p.get("type") == type]
         return JSONResponse(content=products)
     except Exception as e:
-        import traceback; traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return _err(e)
 
 # ── Catalog — add ─────────────────────────────────────────────────────────────
 @app.post("/catalog/products")
 async def catalog_add(
-    swatch:      UploadFile       = File(...),
-    name:        str              = Form(...),
-    collection:  str              = Form(...),
-    type:        str              = Form(...),
-    density:     str              = Form("medium"),
-    price_per_m: str              = Form(...),   # accept as str, coerce below
-    description: str              = Form(""),
-    color_hex:   str              = Form("#888888"),
-    in_stock:    str              = Form("true"), # accept as str — bool parsing is fragile
-    lead_days:   str              = Form("7"),    # accept as str, coerce below
-    currency:    str              = Form("ILS"),
+    swatch:        UploadFile       = File(...),
+    name:          str              = Form(...),
+    collection:    str              = Form(...),
+    type:          str              = Form(...),
+    density:       str              = Form("medium"),
+    price_per_m:   str              = Form(...),
+    description:   str              = Form(""),
+    color_hex:     str              = Form("#888888"),
+    in_stock:      str              = Form("true"),
+    lead_days:     str              = Form("7"),
+    currency:      str              = Form("ILS"),
+    x_admin_key:   Optional[str]    = Header(None),
 ):
+    require_admin(x_admin_key)
+    # Enforce field length caps
+    for field_val, field_name in [(name, "name"), (collection, "collection"), (description, "description")]:
+        if len(field_val) > MAX_FIELD_LEN:
+            raise HTTPException(status_code=400, detail=f"{field_name} exceeds maximum length")
+    # Validate curtain type
+    if type not in STYLE_PROMPTS:
+        raise HTTPException(status_code=400, detail=f"Invalid curtain type '{type}'")
     try:
         # Build a slug id from name
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -590,13 +689,15 @@ async def catalog_add(
         print(f"  ✅  Added fabric: {name} ({type})")
         return JSONResponse(content=new_product, status_code=201)
 
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback; traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return _err(e)
 
 # ── Catalog — delete ──────────────────────────────────────────────────────────
 @app.delete("/catalog/products/{product_id}")
-def catalog_delete(product_id: str):
+def catalog_delete(product_id: str, x_admin_key: Optional[str] = Header(None)):
+    require_admin(x_admin_key)
     try:
         products = _read_catalog()
         target = next((p for p in products if p["id"] == product_id), None)
@@ -611,9 +712,10 @@ def catalog_delete(product_id: str):
         _write_catalog([p for p in products if p["id"] != product_id])
         print(f"  🗑️  Deleted fabric: {product_id}")
         return JSONResponse({"ok": True})
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback; traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return _err(e)
 
 TEXT_MODEL = "gemini-2.5-flash"   # fast text model for analysis
 
@@ -672,14 +774,16 @@ JSON schema (fill every field):
 }}"""
 
 @app.post("/analyze")
+@limiter.limit("20/hour")
 async def analyze(
+    request:      Request,
     room_image:   UploadFile = File(...),
     selection:    str        = Form(None),   # JSON: [{x,y},...] × 4 pixel coords
     curtain_zone: str        = Form(None),   # JSON: [{x,y},...] × 4 pixel coords
 ):
     t0 = time.time()
     try:
-        room_bytes = await room_image.read()
+        room_bytes = await validate_image_upload(room_image, "room_image")
         room_pil   = Image.open(io.BytesIO(room_bytes)).convert("RGB")
         img_w, img_h = room_pil.size
 
@@ -746,9 +850,10 @@ async def analyze(
         print(f"  🔍 Analysis done in {round(time.time()-t0,1)}s")
         return JSONResponse({"ok": True, "analysis": analysis})
 
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback; traceback.print_exc()
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        return _err(e)
 
 @app.get("/status")
 def status():
@@ -787,10 +892,12 @@ async def save_result(
 @app.get("/saves/{save_id}/image")
 def get_save_image(save_id: str):
     """Serve the PNG for a saved visualisation."""
-    from fastapi.responses import FileResponse
-    img_path = SAVES_DIR / save_id / "simulation.png"
+    if not re.fullmatch(r"[0-9a-f]{12}", save_id):
+        raise HTTPException(status_code=400, detail="Invalid save id")
+    img_path = (SAVES_DIR / save_id / "simulation.png").resolve()
+    if not str(img_path).startswith(str(SAVES_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid save id")
     if not img_path.exists():
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Save not found")
     return FileResponse(str(img_path), media_type="image/png")
 
@@ -826,7 +933,9 @@ def delete_save(save_id: str):
     return {"ok": True}
 
 @app.post("/generate")
+@limiter.limit("10/hour")
 async def generate(
+    request:       Request,
     room_image:    UploadFile = File(...),
     fabric_id:     str = Form(""),       # look up swatch on disk — no client re-upload
     curtain_type:  str = Form(""),
@@ -842,7 +951,7 @@ async def generate(
     t0 = time.time()
     try:
         # ── Load room image ───────────────────────────────────────────────────
-        room_bytes = await room_image.read()
+        room_bytes = await validate_image_upload(room_image, "room_image")
         try:
             room_pil = Image.open(io.BytesIO(room_bytes)).convert("RGB")
         except Exception:
@@ -1000,9 +1109,10 @@ async def generate(
         out_img.save(buf, format="PNG")
         return FastAPIResponse(content=buf.getvalue(), media_type="image/png")
 
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback; traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return _err(e)
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
