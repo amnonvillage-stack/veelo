@@ -11,10 +11,39 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/.venv"
-PYTHON="${PYTHON:-python3}"
+
+# Require Python 3.10+ (google-genai >= 1.48 dropped 3.9 support)
+# Prefer python3.11 / python3.12 / python3.10 from Homebrew if available,
+# then fall back to whatever PYTHON env var or python3 resolves to.
+if [ -z "${PYTHON:-}" ]; then
+  for candidate in python3.12 python3.11 python3.10; do
+    if command -v "$candidate" &>/dev/null; then
+      PYTHON="$candidate"
+      break
+    fi
+  done
+  PYTHON="${PYTHON:-python3}"
+fi
+
+PY_VER=$("$PYTHON" -c "import sys; print(sys.version_info[:2])")
+if [[ "$PY_VER" < "(3, 10)" ]]; then
+  echo "❌  Python 3.10+ is required (found $("$PYTHON" --version))."
+  echo "   Install via Homebrew:  brew install python@3.11"
+  echo "   Then re-run:           rm -rf .venv && ./run.sh"
+  exit 1
+fi
+
+# If the existing venv is Python < 3.10, nuke and recreate it
+if [ -d "$VENV_DIR" ]; then
+  VENV_PY_VER=$("$VENV_DIR/bin/python" -c "import sys; print(sys.version_info[:2])" 2>/dev/null || echo "(0, 0)")
+  if [[ "$VENV_PY_VER" < "(3, 10)" ]]; then
+    echo "→ Existing venv is Python < 3.10 — recreating with $("$PYTHON" --version)"
+    rm -rf "$VENV_DIR"
+  fi
+fi
 
 if [ ! -d "$VENV_DIR" ]; then
-  echo "→ Creating virtualenv at $VENV_DIR"
+  echo "→ Creating virtualenv with $("$PYTHON" --version) at $VENV_DIR"
   "$PYTHON" -m venv "$VENV_DIR"
 fi
 
