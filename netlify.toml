@@ -1,0 +1,19 @@
+# ── Netlify build configuration ──────────────────────────────────────────────
+# Repo layout: /frontend (Vite/React) + /backend (FastAPI, deployed separately)
+# This file tells Netlify to build only the frontend.
+
+[build]
+  base    = "frontend"        # all commands run inside /frontend
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# ── SPA fallback ─────────────────────────────────────────────────────────────
+# Belt-and-suspenders alongside frontend/public/_redirects.
+# Both are present because some Netlify edge configurations prefer one or the other.
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

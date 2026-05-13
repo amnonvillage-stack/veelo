@@ -28,8 +28,19 @@ const MIME = {
 }
 
 function sharedAssets() {
+  let outDir = path.resolve(__dirname, 'dist') // overridden by configResolved
+
   return {
     name: 'vicky-shared-assets',
+
+    // Capture the resolved output directory so closeBundle can use it.
+    configResolved(config) {
+      outDir = config.build.outDir
+        ? path.resolve(config.root, config.build.outDir)
+        : path.resolve(__dirname, 'dist')
+    },
+
+    // Dev server: serve ../assets at /assets/ URL without copying files.
     configureServer(server) {
       server.middlewares.use('/assets', (req, res, next) => {
         try {
@@ -51,6 +62,18 @@ function sharedAssets() {
           next()
         }
       })
+    },
+
+    // Production build: copy ../assets → <outDir>/assets/ so /assets/* URLs
+    // resolve on Netlify (and any static host) exactly as they do in dev.
+    closeBundle() {
+      const destDir = path.join(outDir, 'assets')
+      try {
+        fs.cpSync(SHARED_ASSETS_DIR, destDir, { recursive: true })
+        console.log(`[vicky-shared-assets] Copied ../assets → ${destDir}`)
+      } catch (e) {
+        console.warn('[vicky-shared-assets] Asset copy failed:', e.message)
+      }
     },
   }
 }
