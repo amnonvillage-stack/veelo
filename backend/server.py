@@ -131,26 +131,63 @@ def _err(e: Exception, status: int = 500) -> JSONResponse:
     msg = str(e) if DEBUG else "An internal error occurred"
     return JSONResponse({"error": msg}, status_code=status)
 
-# Try candidate model names — Google renames these periodically
+# Pinned model names in preference order — 3.1 first for best image quality.
+# Override at runtime without touching code: set GEMINI_IMAGE_MODEL in .env
+# To discover exact names available on your key:
+#   python3 -c "
+#     from google import genai; import os
+#     c = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
+#     [print(m.name) for m in c.models.list() if 'image' in m.name.lower()]
+#   "
 _MODEL_CANDIDATES = [
-    "gemini-3.1-flash-image",            # 3.1 — preferred
-    "gemini-3.1-flash-image-preview",    # 3.1 preview fallback
-    "gemini-2.5-flash-image",            # 2.5 fallback
+    "gemini-3.1-flash-image",                      # 3.1 stable — best quality
+    "gemini-3.1-flash-image-preview",              # 3.1 preview variant
+    "gemini-2.5-flash-preview-image-generation",   # 2.5 preview fallback
+    "gemini-2.0-flash-preview-image-generation",   # 2.0 preview fallback
+    "gemini-2.0-flash-exp",                        # experimental (supports IMAGE modality)
 ]
 
 def _resolve_model() -> str:
-    """Return the first model that exists and supports generateContent."""
+    """Return the first model that exists and supports generateContent.
+    Set GEMINI_IMAGE_MODEL in .env to pin a specific name and skip resolution."""
+    # Env override — useful when Google graduates a preview to a new stable name
+    override = os.environ.get("GEMINI_IMAGE_MODEL", "").strip()
+    if override:
+        print(f"  📌  Image model pinned via env: {override}")
+        return override
+
     try:
         all_models = list(client.models.list())
         available = {m.name.split("/")[-1] for m in all_models}
 
+        # 1. Prefer an exact pinned name
         for candidate in _MODEL_CANDIDATES:
             if candidate in available:
+                print(f"  ✅  Resolved image model: {candidate}")
                 return candidate
 
-        print(f"  ⚠️  None of the candidate models matched. See list above.")
+        # 2. Fuzzy fallback: any model whose name contains both 'flash' and 'image'
+        image_models = sorted(
+            [name for name in available if "flash" in name and "image" in name],
+            reverse=True,   # lexicographic desc → higher version numbers first
+        )
+        if image_models:
+            chosen = image_models[0]
+            print(f"  ⚠️  No pinned model matched. Auto-selected: {chosen}")
+            print(f"       Available image models: {image_models}")
+            return chosen
+
+        print(f"  ❌  No image-capable model found. Available models:")
+        for name in sorted(available):
+            print(f"       {name}")
+        raise RuntimeError(
+            "No Gemini image-generation model found. "
+            "Set GEMINI_IMAGE_MODEL=<name> in .env or update _MODEL_CANDIDATES."
+        )
+    except RuntimeError:
+        raise
     except Exception as e:
-        print(f"  ⚠️  list_models failed ({e})")
+        print(f"  ⚠️  list_models failed ({e}). Falling back to first candidate.")
     return _MODEL_CANDIDATES[0]
 
 MODEL_NAME = _resolve_model()
@@ -1082,7 +1119,7 @@ async def generate(
             model=MODEL_NAME,
             contents=contents,
             config=types.GenerateContentConfig(
-                response_modalities=["IMAGE", "TEXT"],
+                response_modalities=["IMAGE"],
             ),
         )
 

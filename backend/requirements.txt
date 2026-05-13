@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
 python-multipart
-google-genai
+google-genai>=1.48.0
 Pillow
 slowapi
