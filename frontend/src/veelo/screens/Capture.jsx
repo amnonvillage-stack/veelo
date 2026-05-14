@@ -10,8 +10,10 @@ import { useT } from '../../i18n/useT.js'
 import { apiFetch, API_BASE } from '../../api.js'
 import {
   IconCamera, IconImage, IconSettings, IconLightbulb,
-  IconUpload, IconHome, IconX, IconTrash, IconMenu,
+  IconUpload, IconHome, IconX, IconTrash, IconMenu, IconWhatsApp,
 } from '../components/icons.jsx'
+
+const VICKY_WHATSAPP = import.meta.env.VITE_VICKY_WHATSAPP ?? ''
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatRelative(ts, t) {
@@ -118,6 +120,22 @@ function PreviewOverlay({ save, onClose, onDelete }) {
     onClose()
   }
 
+  const handleWhatsApp = () => {
+    const imageUrl = `${API_BASE}${save.path}`
+    const lines = [
+      'Hello Vicky! 👋',
+      'I used your curtain simulator and I love this option:',
+      '',
+      save.fabric_name && `🧵 ${save.fabric_name}${save.curtain_type ? ` · ${save.curtain_type}` : ''}`,
+      '',
+      '📸 Preview:',
+      imageUrl,
+      '',
+      "Can we discuss this? I'd love your advice!",
+    ].filter(l => l !== false && l !== null && l !== undefined).join('\n')
+    window.open(`https://wa.me/${VICKY_WHATSAPP}?text=${encodeURIComponent(lines)}`, '_blank', 'noopener,noreferrer')
+  }
+
   return (
     <div
       onClick={onClose}
@@ -156,7 +174,7 @@ function PreviewOverlay({ save, onClose, onDelete }) {
       </div>
       <div
         onClick={e => e.stopPropagation()}
-        style={{ marginTop: 20, display: 'flex', gap: 10 }}
+        style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}
       >
         <button
           onClick={handleDelete}
@@ -169,6 +187,18 @@ function PreviewOverlay({ save, onClose, onDelete }) {
           }}
         >
           <IconTrash size={14} strokeWidth={2} /> {t('app.capture.delete')}
+        </button>
+        <button
+          onClick={handleWhatsApp}
+          style={{
+            background: 'rgba(37,211,102,.18)',
+            border: '1px solid rgba(37,211,102,.4)', borderRadius: 'var(--r-full)',
+            color: '#25D366', padding: '8px 20px',
+            fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 7,
+          }}
+        >
+          <IconWhatsApp size={16} /> WhatsApp
         </button>
         <button
           onClick={onClose}
