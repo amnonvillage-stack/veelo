@@ -42,7 +42,12 @@ if env_file.exists():
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 ADMIN_KEY      = os.environ.get("ADMIN_KEY", "")        # required for catalog write ops
-ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:4173").split(",")
+ALLOWED_ORIGINS = os.environ.get(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:4173,"
+    "https://vickyisrael.co.il,https://www.vickyisrael.co.il,"
+    "https://aesthetic-sable-0db379.netlify.app"
+).split(",")
 DEBUG = os.environ.get("DEBUG", "").lower() in ("1", "true", "yes")
 
 # ── Dependency check ──────────────────────────────────────────────────────────
@@ -1153,10 +1158,13 @@ async def generate(
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
+    # Railway (and most PaaS) inject $PORT; fall back to 8000 for local dev.
+    port = int(os.environ.get("PORT", 8000))
     print("╔══════════════════════════════════════════════╗")
     print("║   Veelo — Gemini Image Server                ║")
     print("╚══════════════════════════════════════════════╝\n")
     print(f"  Model  : {MODEL_NAME}")
     print(f"  Key    : {'✅  set' if GEMINI_API_KEY else '❌  missing'}")
-    print(f"  Open   : http://localhost:8000\n")
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="warning")
+    print(f"  Port   : {port}")
+    print(f"  Open   : http://localhost:{port}\n")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
