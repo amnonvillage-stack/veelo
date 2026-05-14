@@ -14,7 +14,7 @@ Manual setup:
 Server: http://localhost:8000
 """
 
-import base64, io, json, os, re, time, sys, uuid
+import base64, io, json, os, re, shutil, time, sys, uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -198,7 +198,16 @@ def _resolve_model() -> str:
 MODEL_NAME = _resolve_model()
 
 SCRIPT_DIR  = Path(__file__).parent
-CATALOG_DIR = SCRIPT_DIR / "catalog"
+
+# ── Persistent data directory ─────────────────────────────────────────────────
+# In production: a Railway Volume is mounted at <SCRIPT_DIR>/data (i.e. /app/data).
+# One volume covers both saves/ and catalog/ so we never lose user data on redeploy.
+# In local dev: data/ is created next to server.py and gitignored.
+DATA_DIR     = SCRIPT_DIR / "data"
+CATALOG_DIR  = DATA_DIR / "catalog"
+
+# The catalog committed to the repo — used to seed the volume on first boot.
+_DEFAULT_CATALOG_DIR = SCRIPT_DIR / "catalog"
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -623,7 +632,26 @@ app.add_middleware(
 )
 
 SWATCHES_DIR = CATALOG_DIR / "swatches"
-SWATCHES_DIR.mkdir(parents=True, exist_ok=True)
+
+def _seed_data_dir():
+    """Copy the repo's default catalog into the volume on first boot."""
+    SAVES_DIR.mkdir(parents=True, exist_ok=True)
+    SWATCHES_DIR.mkdir(parents=True, exist_ok=True)
+    products_dst = CATALOG_DIR / "products.json"
+    if products_dst.exists():
+        return  # already seeded — nothing to do
+    products_src = _DEFAULT_CATALOG_DIR / "products.json"
+    if products_src.exists():
+        shutil.copy2(str(products_src), str(products_dst))
+        print(f"[veelo] Seeded catalog products from {products_src}")
+    swatches_src = _DEFAULT_CATALOG_DIR / "swatches"
+    if swatches_src.exists():
+        for f in swatches_src.iterdir():
+            if f.is_file():
+                shutil.copy2(str(f), str(SWATCHES_DIR / f.name))
+        print(f"[veelo] Seeded {len(list(swatches_src.iterdir()))} swatches")
+
+_seed_data_dir()
 
 @app.get("/")
 def index():
@@ -919,8 +947,7 @@ def status():
     return {"model": MODEL_NAME, "ready": True}
 
 # ── Saves — persist a visualisation the user marked as favourite ──────────────
-SAVES_DIR = SCRIPT_DIR / "saves"
-SAVES_DIR.mkdir(parents=True, exist_ok=True)
+SAVES_DIR = DATA_DIR / "saves"
 
 @app.post("/saves")
 async def save_result(

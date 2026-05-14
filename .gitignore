@@ -34,6 +34,7 @@ yarn-error.log*
 
 # ── Runtime / generated ───────────────────────────────────────────────────────
 saves/
+backend/data/
 marker_debug*.jpg
 marker_debug*.png
 *.tmp
