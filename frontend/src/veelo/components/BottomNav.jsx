@@ -39,7 +39,7 @@ export default function BottomNav({ activeIcon: ActiveIcon, activeLabel, onMenu 
           label="Home"
           icon={<IconHome size={18} />}
           active={false}
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/veelo')}
           pill
         />
         <NavItem
@@ -77,7 +77,7 @@ export default function BottomNav({ activeIcon: ActiveIcon, activeLabel, onMenu 
         label="Home"
         icon={<IconHome size={22} />}
         active={false}
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/veelo')}
       />
       <NavItem
         label={activeLabel}

@@ -744,7 +744,7 @@ export default function Results({
       )}
 
       <Toast visible={toast.visible} message={toast.message} icon={toast.icon} />
-      {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} />}
+      {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} onMenu={() => setMenuOpen(true)} />}
     </div>
   )
 }
