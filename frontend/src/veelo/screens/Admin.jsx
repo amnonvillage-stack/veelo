@@ -62,11 +62,106 @@ const EMPTY = {
   color_hex:'#888888', in_stock:true, lead_days:'7', currency:'ILS',
 }
 
+// ── Session storage key for admin authentication ───────────────────────────────
+const ADMIN_SESSION_KEY = 'veelo.admin.key'
+
+// ── Key-gate screen ────────────────────────────────────────────────────────────
+function AdminGate({ onUnlock }) {
+  const [keyInput,   setKeyInput]   = useState('')
+  const [gateError,  setGateError]  = useState(null)
+  const [verifying,  setVerifying]  = useState(false)
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault()
+    const key = keyInput.trim()
+    if (!key) return
+    setVerifying(true)
+    setGateError(null)
+    try {
+      const res = await apiFetch('/admin/verify', {
+        headers: { 'X-Admin-Key': key },
+      })
+      if (!res.ok) throw new Error('wrong key')
+      sessionStorage.setItem(ADMIN_SESSION_KEY, key)
+      onUnlock(key)
+    } catch {
+      setGateError('Wrong key — try again.')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  return (
+    <div style={{
+      display:'flex', flexDirection:'column', alignItems:'center',
+      justifyContent:'center', height:'100%',
+      background:'var(--bg)', padding:32, gap:24,
+    }}>
+      <div style={{ textAlign:'center' }}>
+        <div style={{ fontSize:'2.4rem', marginBottom:12 }}>🔒</div>
+        <div style={{
+          fontFamily:'var(--font-display)', fontSize:'1.4rem',
+          fontWeight:500, color:'var(--ink)', marginBottom:6,
+        }}>
+          Admin area
+        </div>
+        <div style={{ fontSize:'0.78rem', color:'var(--text-3)' }}>
+          Enter the admin key to continue
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{
+        width:'100%', maxWidth:320,
+        display:'flex', flexDirection:'column', gap:12,
+      }}>
+        <input
+          autoFocus
+          type="password"
+          value={keyInput}
+          onChange={e => { setKeyInput(e.target.value); setGateError(null) }}
+          placeholder="Admin key"
+          style={inputStyle}
+        />
+
+        {gateError && (
+          <div style={{
+            fontSize:'0.75rem', color:'var(--error)',
+            background:'rgba(192,64,64,.08)',
+            border:'1px solid rgba(192,64,64,.2)',
+            borderRadius:'var(--r-sm)', padding:'8px 12px',
+          }}>
+            ⚠️ {gateError}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={verifying || !keyInput.trim()}
+          style={{
+            padding:'13px', borderRadius:'var(--r-md)',
+            background: (verifying || !keyInput.trim()) ? 'var(--surface-3)' : 'var(--ink)',
+            color: (verifying || !keyInput.trim()) ? 'var(--text-3)' : 'var(--bg)',
+            border:'none', fontSize:'0.85rem', fontWeight:500,
+            letterSpacing:'0.06em', textTransform:'uppercase',
+            cursor: (verifying || !keyInput.trim()) ? 'not-allowed' : 'pointer',
+            transition:'background var(--duration)',
+          }}
+        >
+          {verifying ? 'Verifying…' : 'Unlock'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function Admin({ onBack, debugMode, onToggleDebug }) {
+  // Restore key from sessionStorage so Vicky doesn't re-enter on every visit
+  const [isUnlocked, setIsUnlocked] = useState(() => !!sessionStorage.getItem(ADMIN_SESSION_KEY))
+  const [adminKey,   setAdminKey]   = useState(() => sessionStorage.getItem(ADMIN_SESSION_KEY) || '')
+
   const [products,  setProducts]  = useState([])
   const [form,      setForm]      = useState(EMPTY)
-  const [adminKey,  setAdminKey]  = useState('')
   const [swatchFile, setSwatchFile] = useState(null)
   const [swatchUrl,  setSwatchUrl]  = useState(null)
   const [saving,    setSaving]    = useState(false)
@@ -74,6 +169,17 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
   const [error,     setError]     = useState(null)
   const [success,   setSuccess]   = useState(null)
   const fileRef = useRef(null)
+
+  const handleUnlock = (key) => {
+    setAdminKey(key)
+    setIsUnlocked(true)
+  }
+
+  const handleLock = () => {
+    sessionStorage.removeItem(ADMIN_SESSION_KEY)
+    setAdminKey('')
+    setIsUnlocked(false)
+  }
 
   const loadProducts = () => {
     apiFetch('/catalog')
@@ -157,35 +263,47 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
     }
   }
 
+  // Show gate if not unlocked — TopBar still renders so user can go back
+  if (!isUnlocked) {
+    return (
+      <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'var(--bg)' }}>
+        <TopBar title="Fabric Admin" onBack={onBack} />
+        <AdminGate onUnlock={handleUnlock} />
+      </div>
+    )
+  }
+
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'var(--bg)' }}>
       <TopBar
         title="Fabric Admin"
         onBack={onBack}
         right={
-          <span style={{
-            fontSize:'0.6rem', fontWeight:700, letterSpacing:'0.12em',
-            textTransform:'uppercase', color:'var(--text-3)',
-          }}>
-            {products.length} fabrics
-          </span>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <span style={{
+              fontSize:'0.6rem', fontWeight:700, letterSpacing:'0.12em',
+              textTransform:'uppercase', color:'var(--text-3)',
+            }}>
+              {products.length} fabrics
+            </span>
+            <button
+              onClick={handleLock}
+              title="Lock admin"
+              style={{
+                background:'none', border:'1px solid var(--border)',
+                borderRadius:'var(--r-sm)', padding:'4px 10px',
+                fontSize:'0.65rem', color:'var(--text-3)',
+                cursor:'pointer', letterSpacing:'0.08em',
+                textTransform:'uppercase', fontWeight:600,
+              }}
+            >
+              🔒 Lock
+            </button>
+          </div>
         }
       />
 
       <div className="scroll" style={{ flex:1, padding:'0 20px 40px' }}>
-
-        {/* ── Admin key ──────────────────────────────────────────────── */}
-        <div style={{ marginBottom: 20 }}>
-          <Field label="Admin key">
-            <input
-              style={inputStyle}
-              type="password"
-              value={adminKey}
-              onChange={e => setAdminKey(e.target.value)}
-              placeholder="Required for add and delete"
-            />
-          </Field>
-        </div>
 
         {/* ── Debug settings ─────────────────────────────────────────── */}
         <div style={{

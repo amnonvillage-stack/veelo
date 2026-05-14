@@ -698,6 +698,12 @@ def get_swatch(filename: str):
         raise HTTPException(status_code=404, detail=f"Swatch not found")
     return FileResponse(str(f))
 
+@app.get("/admin/verify")
+def admin_verify(x_admin_key: Optional[str] = Header(None)):
+    """Lightweight endpoint the frontend uses to validate the admin key before unlocking the UI."""
+    require_admin(x_admin_key)
+    return {"ok": True}
+
 @app.get("/catalog")
 def catalog_list(type: Optional[str] = None):
     """Return all products, optionally filtered by curtain type."""
