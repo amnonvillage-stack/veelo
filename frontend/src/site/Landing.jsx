@@ -10,10 +10,10 @@ import ContactBlock from './sections/ContactBlock.jsx'
 export default function Landing() {
   return (
     <>
-      <Hero />
-      <AboutVicky />
-      <VeeloTeaser />
-      <ContactBlock />
+      <section id="about"><Hero /></section>
+      <section id="studio"><AboutVicky /></section>
+      <section id="veelo"><VeeloTeaser /></section>
+      <section id="contact"><ContactBlock /></section>
     </>
   )
 }
