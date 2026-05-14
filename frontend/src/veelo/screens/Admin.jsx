@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import TopBar from '../components/TopBar.jsx'
+import { apiFetch } from '../../api.js'
 
 const TYPES    = ['eyelet','pleated','roman','roller']
 const DENSITIES = ['sheer','light','medium','heavy','blackout']
@@ -74,7 +75,7 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
   const fileRef = useRef(null)
 
   const loadProducts = () => {
-    fetch('/catalog')
+    apiFetch('/catalog')
       .then(r => {
         if (!r.ok) throw new Error(`Server returned ${r.status}`)
         return r.json()
@@ -120,7 +121,7 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
     fd.append('currency',    form.currency)
 
     try {
-      const res = await fetch('/catalog/products', { method:'POST', body:fd })
+      const res = await apiFetch('/catalog/products', { method:'POST', body:fd })
       if (!res.ok) throw new Error(await res.text())
       setSuccess(`"${form.name}" added to catalogue.`)
       setForm(EMPTY)
@@ -138,7 +139,7 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
     if (!window.confirm(`Remove "${product.name}" from the catalogue?`)) return
     setDeleting(product.id)
     try {
-      const res = await fetch(`/catalog/products/${product.id}`, { method:'DELETE' })
+      const res = await apiFetch(`/catalog/products/${product.id}`, { method:'DELETE' })
       if (!res.ok) throw new Error('Delete failed')
       setSuccess(`"${product.name}" removed.`)
       loadProducts()

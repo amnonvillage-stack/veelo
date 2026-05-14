@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { apiFetch } from '../api.js'
 import Capture   from './screens/Capture.jsx'
 import Configure from './screens/Configure.jsx'
 import Catalog   from './screens/Catalog.jsx'
@@ -84,7 +85,7 @@ export default function VeeloApp() {
       }
       if (analysisResult) fd.append('analysis_json', JSON.stringify(analysisResult))
 
-      const res = await fetch('/generate', { method: 'POST', body: fd })
+      const res = await apiFetch('/generate', { method: 'POST', body: fd })
       if (!res.ok) {
         let reason = `HTTP ${res.status}`
         try { const j = await res.json(); reason = j.error || reason } catch {}
@@ -121,7 +122,7 @@ export default function VeeloApp() {
       const fd = new FormData()
       fd.append('room_image', roomFile)
       if (curtainPoints.length === 4) fd.append('selection', JSON.stringify(curtainPoints))
-      const r    = await fetch('/analyze', { method: 'POST', body: fd })
+      const r    = await apiFetch('/analyze', { method: 'POST', body: fd })
       const data = r.ok ? await r.json() : null
       if (data?.ok && data.analysis) {
         analysisResult = data.analysis
@@ -148,7 +149,7 @@ export default function VeeloApp() {
         if (analysisResult) fd.append('analysis_json', JSON.stringify(analysisResult))
         fd.append('dry_run', '1')
 
-        const res  = await fetch('/generate', { method: 'POST', body: fd })
+        const res  = await apiFetch('/generate', { method: 'POST', body: fd })
         const data = res.ok ? await res.json() : null
         if (data?.ok && data.prompt) {
           setPromptPreview({ prompt: data.prompt, fabrics, analysis: analysisResult })

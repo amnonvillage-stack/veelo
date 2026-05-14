@@ -10,6 +10,7 @@ import MobileMenu from '../components/MobileMenu.jsx'
 import Toast, { useToast } from '../components/Toast.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
+import { apiFetch } from '../../api.js'
 import {
   IconHeart, IconShare, IconGrid, IconSparkles, IconStar,
 } from '../components/icons.jsx'
@@ -310,7 +311,7 @@ export default function Results({
       fd.append('fabric_name',  active.fabric.name)
       fd.append('fabric_id',    active.fabric.id)
       fd.append('curtain_type', curtainType)
-      const res = await fetch('/saves', { method: 'POST', body: fd })
+      const res = await apiFetch('/saves', { method: 'POST', body: fd })
       if (res.ok) {
         setSaved(prev => new Set(prev).add(activeIdx))
         toast.show(t('app.results.toast_saved'), <IconHeart size={14} filled />)

@@ -7,6 +7,7 @@ import BottomNav from '../components/BottomNav.jsx'
 import MobileMenu from '../components/MobileMenu.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
+import { apiFetch } from '../../api.js'
 import {
   IconCamera, IconImage, IconSettings, IconLightbulb,
   IconUpload, IconHome, IconX, IconTrash, IconMenu,
@@ -372,7 +373,7 @@ export default function Capture({ onRoomPicked, onAdmin }) {
   // Fetch saves on mount
   useEffect(() => {
     let cancelled = false
-    fetch('/saves')
+    apiFetch('/saves')
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => { if (!cancelled) { setSaves(data); setSavesState('ready') } })
       .catch(() => { if (!cancelled) setSavesState('error') })
@@ -383,7 +384,7 @@ export default function Capture({ onRoomPicked, onAdmin }) {
   const handleDelete = async (save) => {
     setSaves(prev => prev.filter(s => s.id !== save.id))
     try {
-      const res = await fetch(`/saves/${save.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/saves/${save.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
     } catch {
       // Rollback: re-insert at original position

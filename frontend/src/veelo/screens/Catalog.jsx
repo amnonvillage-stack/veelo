@@ -8,6 +8,7 @@ import BottomNav from '../components/BottomNav.jsx'
 import MobileMenu from '../components/MobileMenu.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
+import { apiFetch } from '../../api.js'
 import { IconSearch, IconX, IconCheck, IconScissors, IconSparkles } from '../components/icons.jsx'
 
 const DENSITY_KEYS = ['sheer', 'light', 'medium', 'heavy', 'blackout']
@@ -180,7 +181,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
   }))
 
   useEffect(() => {
-    fetch('/catalog')
+    apiFetch('/catalog')
       .then(r => r.json())
       .then(data => { setProducts(data); setLoading(false) })
       .catch(() => setLoading(false))
