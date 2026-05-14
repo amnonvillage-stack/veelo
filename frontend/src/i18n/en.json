@@ -76,6 +76,19 @@
       "tagline_sub": "Upload a photo of any room and preview photo-realistic curtains — instantly.",
       "home": "Home"
     },
+    "curtain_type": {
+      "title": "Curtain Type",
+      "step": "2 / 3",
+      "precision_label": "Multiple windows, or need precision",
+      "precision_hint": "You'll mark the exact window area and optionally enter dimensions",
+      "continue": "Choose Fabric",
+      "nav_label": "Type"
+    },
+    "precision": {
+      "title": "Mark Window Area",
+      "step": "2.5 / 3",
+      "nav_label": "Precision"
+    },
     "configure": {
       "title": "Mark Curtain Area",
       "step": "2 / 3",

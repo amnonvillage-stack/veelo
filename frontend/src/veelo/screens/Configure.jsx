@@ -1,7 +1,8 @@
-// ── Configure — Mark Curtain Area ────────────────────────────────────────────
-// Step 2 of the Veelo flow.
-// The user marks 4 corner points on their room photo to define the curtain zone,
-// picks a curtain type, and optionally enters real-world dimensions.
+// ── Configure — Precision Step (optional 2.5) ────────────────────────────────
+// Optional step when the user enabled "precision mode" in CurtainType screen.
+// The user marks 4 corner points on their room photo to define the exact
+// curtain zone, and optionally enters real-world dimensions.
+// Curtain type is no longer set here — it comes from CurtainType screen.
 
 import { useRef, useState, useEffect, useCallback } from 'react'
 import TopBar    from '../components/TopBar.jsx'
@@ -9,18 +10,7 @@ import BottomNav from '../components/BottomNav.jsx'
 import MobileMenu from '../components/MobileMenu.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
-import {
-  IconCurtainPleated, IconCurtainEyelet,
-  IconCurtainRoman, IconCurtainRoller,
-  IconCamera,
-} from '../components/icons.jsx'
-
-const CURTAIN_TYPE_DEFS = [
-  { value: 'pleated', key: 'pleated', Icon: IconCurtainPleated },
-  { value: 'eyelet',  key: 'eyelet',  Icon: IconCurtainEyelet  },
-  { value: 'roman',   key: 'roman',   Icon: IconCurtainRoman   },
-  { value: 'roller',  key: 'roller',  Icon: IconCurtainRoller  },
-]
+import { IconCamera } from '../components/icons.jsx'
 
 // ── Canvas helpers ─────────────────────────────────────────────────────────────
 function drawScene(canvas, img, points, dragIdx) {
@@ -104,7 +94,7 @@ function hitPoint(pts, px, py, canvas) {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Configure({
   roomUrl, roomFile, analysis,
-  initialPoints, initialType,
+  initialPoints,
   onBack, onDone,
 }) {
   const canvasRef = useRef(null)
@@ -113,16 +103,10 @@ export default function Configure({
   const isDesktop = useDesktop()
   const t = useT()
 
-  const CURTAIN_TYPES = CURTAIN_TYPE_DEFS.map(d => ({
-    ...d,
-    label: t(`app.configure.${d.key}`),
-  }))
-
-  const [menuOpen,    setMenuOpen]    = useState(false)
-  const [points,      setPoints]      = useState(initialPoints || [])
-  const [curtainType, setCurtainType] = useState(initialType   || '')
-  const [czW, setCzW] = useState('')
-  const [czH, setCzH] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [points,   setPoints]   = useState(initialPoints || [])
+  const [czW,      setCzW]      = useState('')
+  const [czH,      setCzH]      = useState('')
 
   // Load room image
   useEffect(() => {
@@ -194,7 +178,8 @@ export default function Configure({
 
   const onPointerUp = useCallback(() => { dragRef.current = -1 }, [])
 
-  const canContinue = roomUrl != null
+  // Precision mode requires all 4 corners before continuing
+  const canContinue = points.length === 4
 
   // Shared canvas element
   const canvasEl = (
@@ -211,7 +196,7 @@ export default function Configure({
     />
   )
 
-  // Step progress indicator for TopBar
+  // Step progress indicator — precision is an optional mid-step
   const stepIndicator = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       {[0,1,2].map(i => (
@@ -222,7 +207,9 @@ export default function Configure({
           transition: 'width var(--duration)',
         }} />
       ))}
-      <span style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginLeft: 4 }}>{t('app.configure.step')}</span>
+      <span style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginLeft: 4 }}>
+        {t('app.precision.step')}
+      </span>
     </div>
   )
 
@@ -259,45 +246,6 @@ export default function Configure({
             {t('app.configure.clear')}
           </button>
         )}
-      </div>
-
-      <div style={{ height: 1, background: 'var(--border)', margin: isDesktop ? '0 24px 14px' : '0 20px 14px' }} />
-
-      {/* Curtain type */}
-      <div style={{ padding: isDesktop ? '0 24px 14px' : '0 20px 14px' }}>
-        <div style={{
-          fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.14em',
-          textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 10,
-        }}>
-          {t('app.configure.curtain_type')}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          {CURTAIN_TYPES.map(({ value, label, Icon }) => {
-            const active = curtainType === value
-            return (
-              <button
-                key={value}
-                onClick={() => setCurtainType(value)}
-                style={{
-                  padding: '12px 10px',
-                  borderRadius: 'var(--r-md)',
-                  background: active ? 'var(--accent-dim)' : 'var(--surface)',
-                  border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                  color: active ? 'var(--accent)' : 'var(--text-2)',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                  cursor: 'pointer',
-                  transition: 'all var(--duration)',
-                  boxShadow: active ? '0 0 0 2px var(--accent-glow)' : 'none',
-                }}
-              >
-                <Icon size={30} />
-                <span style={{ fontSize: '0.7rem', fontWeight: active ? 700 : 500, letterSpacing: '0.04em' }}>
-                  {label}
-                </span>
-              </button>
-            )
-          })}
-        </div>
       </div>
 
       <div style={{ height: 1, background: 'var(--border)', margin: isDesktop ? '0 24px 14px' : '0 20px 14px' }} />
@@ -351,7 +299,7 @@ export default function Configure({
       {/* Continue CTA */}
       <div style={{ padding: isDesktop ? '4px 24px 24px' : '4px 20px 0' }}>
         <button
-          onClick={() => onDone(points, curtainType, czW, czH)}
+          onClick={() => onDone(points, czW, czH)}
           disabled={!canContinue}
           style={{
             width: '100%', padding: '14px 20px',
@@ -377,7 +325,7 @@ export default function Configure({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
         <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
-        <TopBar title={t('app.configure.title')} onBack={onBack} right={stepIndicator} />
+        <TopBar title={t('app.precision.title')} onBack={onBack} right={stepIndicator} />
 
         {/* ── Desktop: canvas left, controls right ── */}
         <div style={{
@@ -434,7 +382,7 @@ export default function Configure({
           </div>
         </div>
 
-        <BottomNav activeIcon={IconCamera} activeLabel={t('app.configure.nav_label')} onMenu={() => setMenuOpen(true)} />
+        <BottomNav activeIcon={IconCamera} activeLabel={t('app.precision.nav_label')} onMenu={() => setMenuOpen(true)} />
       </div>
     )
   }

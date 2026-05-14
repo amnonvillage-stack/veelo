@@ -1,14 +1,18 @@
 import { useState, useCallback } from 'react'
 import { apiFetch } from '../api.js'
-import Capture   from './screens/Capture.jsx'
-import Configure from './screens/Configure.jsx'
-import Catalog   from './screens/Catalog.jsx'
-import Results   from './screens/Results.jsx'
-import Admin     from './screens/Admin.jsx'
+import Capture     from './screens/Capture.jsx'
+import CurtainType from './screens/CurtainType.jsx'
+import Configure   from './screens/Configure.jsx'
+import Catalog     from './screens/Catalog.jsx'
+import Results     from './screens/Results.jsx'
+import Admin       from './screens/Admin.jsx'
 
 // ── Veelo PWA root ───────────────────────────────────────────────────────────
-// Hand-rolled state machine: capture → configure → catalog → results.
-// State flows down; navigation callbacks bubble up.
+// Hand-rolled state machine:
+//   capture → curtain-type → (precision?) → catalog → results
+//
+// Precision mode is opt-in: user toggles it in the CurtainType screen
+// when their photo has multiple windows or they want to mark the exact area.
 //
 // The root div carries `.veelo-app-root` (defined in tokens.css) which gives
 // this experience a locked viewport (no body scroll, safe-area insets) without
@@ -43,23 +47,44 @@ export default function VeeloApp() {
   // ── Navigation ──────────────────────────────────────────────────────────────
   const goTo = useCallback(s => setScreen(s), [])
 
+  // Track whether user went through precision so Catalog knows where to go back
+  const [precisionUsed, setPrecisionUsed] = useState(false)
+
   const handleRoomPicked = useCallback((file, url) => {
     setRoomFile(file)
     setRoomUrl(url)
     setAnalysis(null)
     setCurtainPoints([])
+    setCurtainType('')
+    setCzWidthCm('')
+    setCzHeightCm('')
     setSelectedFabrics([])
     setResults([])
     setGenError(null)
     setAnalysing(false)
     setPromptPreview(null)
-    setScreen('configure')
+    setPrecisionUsed(false)
+    setScreen('curtain-type')
   }, [])
 
-  // Configure passes back: points, curtainType, widthCm, heightCm
-  const handleConfigureDone = useCallback((pts, type, wCm, hCm) => {
-    setCurtainPoints(pts)
+  // CurtainType screen: user picked a type and decided on precision mode
+  const handleCurtainTypeDone = useCallback((type, wantsPrecision) => {
     setCurtainType(type)
+    if (wantsPrecision) {
+      setPrecisionUsed(true)
+      setScreen('precision')
+    } else {
+      setCurtainPoints([])
+      setCzWidthCm('')
+      setCzHeightCm('')
+      setPrecisionUsed(false)
+      setScreen('catalog')
+    }
+  }, [])
+
+  // Precision (Configure) screen: user marked corners + optional dimensions
+  const handlePrecisionDone = useCallback((pts, wCm, hCm) => {
+    setCurtainPoints(pts)
     setCzWidthCm(wCm)
     setCzHeightCm(hCm)
     setAnalysis(null)
@@ -182,21 +207,27 @@ export default function VeeloApp() {
         onAdmin={() => goTo('admin')}
       />
     ),
-    configure: (
+    'curtain-type': (
+      <CurtainType
+        roomUrl={roomUrl}
+        onBack={() => goTo('capture')}
+        onDone={handleCurtainTypeDone}
+      />
+    ),
+    precision: (
       <Configure
         roomUrl={roomUrl}
         roomFile={roomFile}
         analysis={analysis}
         initialPoints={curtainPoints}
-        initialType={curtainType}
-        onBack={() => goTo('capture')}
-        onDone={handleConfigureDone}
+        onBack={() => goTo('curtain-type')}
+        onDone={handlePrecisionDone}
       />
     ),
     catalog: (
       <Catalog
         curtainType={curtainType}
-        onBack={() => goTo('configure')}
+        onBack={() => goTo(precisionUsed ? 'precision' : 'curtain-type')}
         onGenerate={handleGenerate}
       />
     ),
