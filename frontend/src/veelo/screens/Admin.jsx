@@ -219,7 +219,7 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
           </button>
         </div>
 
-        {/* ── Add fabric form ─────────────────────────────────────────── */}
+        {/* ── Add fabric notice ─────────────────────────────────────────── */}
         <div style={{
           background:'var(--surface)',
           border:'1px solid var(--border)',
@@ -227,233 +227,50 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
           overflow:'hidden',
           marginBottom:24,
         }}>
-          {/* Form header */}
           <div style={{
             padding:'14px 18px',
             borderBottom:'1px solid var(--border)',
             display:'flex', alignItems:'center', gap:10,
           }}>
-            <span style={{ fontSize:'1.1rem' }}>＋</span>
+            <span style={{ fontSize:'1.1rem' }}>🧵</span>
             <span style={{
               fontFamily:'var(--font-display)',
               fontSize:'1.1rem', fontWeight:500, color:'var(--ink)',
             }}>
-              Add new fabric
+              Managing fabrics
             </span>
           </div>
-
-          <div style={{ padding:'18px', display:'flex', flexDirection:'column', gap:14 }}>
-
-            {/* Admin key */}
-            <Field label="Admin key" required>
-              <input
-                style={inputStyle}
-                type="password"
-                value={adminKey}
-                onChange={e => setAdminKey(e.target.value)}
-                placeholder="Enter the admin key set in Railway"
-              />
-            </Field>
-
-            {/* Swatch upload */}
-            <Field label="Swatch image" required>
-              <div
-                onClick={() => fileRef.current?.click()}
-                style={{
-                  border: swatchUrl ? '1.5px solid var(--accent)' : '1.5px dashed var(--border-2)',
-                  borderRadius:'var(--r-md)',
-                  overflow:'hidden',
-                  cursor:'pointer',
-                  height:110,
-                  display:'flex',
-                  alignItems:'center',
-                  justifyContent:'center',
-                  background: swatchUrl ? 'none' : 'var(--surface-2)',
-                  position:'relative',
-                  transition:'border-color var(--duration)',
-                }}
-              >
-                {swatchUrl ? (
-                  <>
-                    <img src={swatchUrl} alt="swatch" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                    <div style={{
-                      position:'absolute', inset:0,
-                      background:'rgba(250,246,240,.7)',
-                      display:'flex', alignItems:'center', justifyContent:'center',
-                      opacity:0, transition:'opacity var(--duration)',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.opacity=1}
-                    onMouseLeave={e => e.currentTarget.style.opacity=0}
-                    >
-                      <span style={{ fontSize:'0.78rem', fontWeight:600, color:'var(--ink)' }}>Change image</span>
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ textAlign:'center', color:'var(--text-3)' }}>
-                    <div style={{ fontSize:'1.8rem', marginBottom:6 }}>🧵</div>
-                    <div style={{ fontSize:'0.75rem', fontWeight:500 }}>Tap to upload swatch</div>
-                  </div>
-                )}
+          <div style={{ padding:'18px', display:'flex', flexDirection:'column', gap:10 }}>
+            <p style={{ fontSize:'0.8rem', color:'var(--text-2)', lineHeight:1.6, margin:0 }}>
+              Fabrics are managed through the code repository so they persist across deploys.
+              To add or update a fabric:
+            </p>
+            {[
+              ['1', 'Add the swatch image to', 'backend/catalog/swatches/'],
+              ['2', 'Edit the fabric list in', 'backend/catalog/products.json'],
+              ['3', 'Commit and push — Railway redeploys automatically', null],
+            ].map(([n, text, code]) => (
+              <div key={n} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                <span style={{
+                  flexShrink:0, width:20, height:20, borderRadius:'50%',
+                  background:'var(--accent)', color:'#fff',
+                  fontSize:'0.65rem', fontWeight:700,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>{n}</span>
+                <span style={{ fontSize:'0.78rem', color:'var(--text-2)', lineHeight:1.5 }}>
+                  {text}{code && <> <code style={{
+                    background:'var(--surface-3)', padding:'1px 5px',
+                    borderRadius:3, fontSize:'0.72rem', color:'var(--ink)',
+                  }}>{code}</code></>}
+                </span>
               </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                style={{ display:'none' }}
-                onChange={e => handleSwatchPick(e.target.files[0])}
-              />
-            </Field>
-
-            {/* Name */}
-            <Field label="Fabric name" required>
-              <input
-                style={inputStyle}
-                value={form.name}
-                onChange={e => set('name', e.target.value)}
-                placeholder="e.g. Burgundy Silk"
-              />
-            </Field>
-
-            {/* Collection + Type */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-              <Field label="Collection">
-                <select style={selectStyle} value={form.collection} onChange={e => set('collection', e.target.value)}>
-                  {COLLECTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                  <option value="__custom">+ Custom…</option>
-                </select>
-              </Field>
-              <Field label="Type" required>
-                <select style={selectStyle} value={form.type} onChange={e => set('type', e.target.value)}>
-                  {TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
-                </select>
-              </Field>
-            </div>
-
-            {/* Price + Density */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-              <Field label="Price / meter (₪)" required>
-                <input
-                  style={inputStyle}
-                  type="number"
-                  value={form.price_per_m}
-                  onChange={e => set('price_per_m', e.target.value)}
-                  placeholder="e.g. 210"
-                  min="1"
-                />
-              </Field>
-              <Field label="Density">
-                <select style={selectStyle} value={form.density} onChange={e => set('density', e.target.value)}>
-                  {DENSITIES.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase()+d.slice(1)}</option>)}
-                </select>
-              </Field>
-            </div>
-
-            {/* Color hex + Lead days */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-              <Field label="Accent colour (hex)">
-                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <input
-                    type="color"
-                    value={form.color_hex}
-                    onChange={e => set('color_hex', e.target.value)}
-                    style={{
-                      width:38, height:38, borderRadius:'var(--r-sm)',
-                      border:'1px solid var(--border)', cursor:'pointer',
-                      padding:2, background:'none',
-                    }}
-                  />
-                  <input
-                    style={{ ...inputStyle, flex:1 }}
-                    value={form.color_hex}
-                    onChange={e => set('color_hex', e.target.value)}
-                    placeholder="#888888"
-                  />
-                </div>
-              </Field>
-              <Field label="Lead time (days)">
-                <input
-                  style={inputStyle}
-                  type="number"
-                  value={form.lead_days}
-                  onChange={e => set('lead_days', e.target.value)}
-                  min="1"
-                />
-              </Field>
-            </div>
-
-            {/* Description */}
-            <Field label="Description">
-              <textarea
-                style={{ ...inputStyle, resize:'vertical', minHeight:70, lineHeight:1.5 }}
-                value={form.description}
-                onChange={e => set('description', e.target.value)}
-                placeholder="Brief textile description used in AI prompts…"
-              />
-            </Field>
-
-            {/* In stock toggle */}
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <button
-                onClick={() => set('in_stock', !form.in_stock)}
-                style={{
-                  width:42, height:24, borderRadius:12,
-                  background: form.in_stock ? 'var(--accent)' : 'var(--surface-3)',
-                  border:'none', position:'relative', cursor:'pointer',
-                  transition:'background var(--duration)',
-                  flexShrink:0,
-                }}
-              >
-                <div style={{
-                  width:18, height:18, borderRadius:'50%', background:'#fff',
-                  position:'absolute', top:3,
-                  left: form.in_stock ? 21 : 3,
-                  transition:'left var(--duration)',
-                  boxShadow:'0 1px 3px rgba(0,0,0,.2)',
-                }} />
-              </button>
-              <span style={{ fontSize:'0.78rem', color:'var(--text-2)' }}>
-                {form.in_stock ? 'In stock' : 'Out of stock'}
-              </span>
-            </div>
-
-            {/* Feedback */}
-            {error && (
-              <div style={{
-                background:'rgba(192,64,64,.08)', border:'1px solid rgba(192,64,64,.2)',
-                borderRadius:'var(--r-sm)', padding:'10px 12px',
-                fontSize:'0.75rem', color:'var(--error)',
-              }}>
-                ⚠️ {error}
-              </div>
-            )}
-            {success && (
-              <div style={{
-                background:'rgba(90,138,96,.08)', border:'1px solid rgba(90,138,96,.2)',
-                borderRadius:'var(--r-sm)', padding:'10px 12px',
-                fontSize:'0.75rem', color:'var(--success)',
-              }}>
-                ✓ {success}
-              </div>
-            )}
-
-            {/* Save button */}
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                padding:'14px', borderRadius:'var(--r-md)',
-                background: saving ? 'var(--surface-3)' : 'var(--ink)',
-                color: saving ? 'var(--text-3)' : 'var(--bg)',
-                border:'none', fontSize:'0.85rem', fontWeight:500,
-                letterSpacing:'0.06em', textTransform:'uppercase',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                transition:'background var(--duration)',
-              }}
-            >
-              {saving ? 'Saving…' : 'Add to Catalogue'}
-            </button>
-
+            ))}
           </div>
+        </div>
+
+        {/* hidden placeholder — keeps handleSave/saving refs alive */}
+        <div style={{ display: 'none' }}>
+          <button onClick={handleSave} disabled={saving} style={{}}>unused</button>
         </div>
 
         {/* ── Existing fabrics ─────────────────────────────────────────── */}

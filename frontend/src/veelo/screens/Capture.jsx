@@ -110,6 +110,7 @@ function SkeletonCard() {
 // ── Full-screen preview overlay ───────────────────────────────────────────────
 function PreviewOverlay({ save, onClose, onDelete }) {
   const t = useT()
+  const [imgFailed, setImgFailed] = useState(false)
   if (!save) return null
 
   const handleDelete = () => {
@@ -127,14 +128,24 @@ function PreviewOverlay({ save, onClose, onDelete }) {
         alignItems: 'center', justifyContent: 'center', padding: 20,
       }}
     >
-      <img
-        src={`${API_BASE}${save.path}`} alt={save.fabric_name}
-        onClick={e => e.stopPropagation()}
-        style={{
-          maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain',
-          borderRadius: 'var(--r-md)', boxShadow: '0 8px 40px rgba(0,0,0,.6)',
-        }}
-      />
+      {imgFailed ? (
+        <div style={{
+          color: 'rgba(255,255,255,.5)', fontSize: '0.85rem', textAlign: 'center', padding: 40,
+        }}>
+          Image no longer available — it was lost when the server restarted.<br />
+          <span style={{ fontSize: '0.72rem' }}>Generate and save again to keep it.</span>
+        </div>
+      ) : (
+        <img
+          src={`${API_BASE}${save.path}`} alt={save.fabric_name}
+          onClick={e => e.stopPropagation()}
+          onError={() => setImgFailed(true)}
+          style={{
+            maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain',
+            borderRadius: 'var(--r-md)', boxShadow: '0 8px 40px rgba(0,0,0,.6)',
+          }}
+        />
+      )}
       <div style={{ marginTop: 14, textAlign: 'center' }}>
         <div style={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>
           {save.fabric_name || 'Saved curtain'}
