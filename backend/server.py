@@ -204,6 +204,7 @@ SCRIPT_DIR  = Path(__file__).parent
 # One volume covers both saves/ and catalog/ so we never lose user data on redeploy.
 # In local dev: data/ is created next to server.py and gitignored.
 DATA_DIR     = SCRIPT_DIR / "data"
+SAVES_DIR    = DATA_DIR / "saves"
 CATALOG_DIR  = DATA_DIR / "catalog"
 
 # The catalog committed to the repo — used to seed the volume on first boot.
@@ -947,7 +948,6 @@ def status():
     return {"model": MODEL_NAME, "ready": True}
 
 # ── Saves — persist a visualisation the user marked as favourite ──────────────
-SAVES_DIR = DATA_DIR / "saves"
 
 @app.post("/saves")
 async def save_result(
