@@ -10,18 +10,15 @@ import MobileMenu from '../components/MobileMenu.jsx'
 import Toast, { useToast } from '../components/Toast.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
-import { apiFetch } from '../../api.js'
+import { apiFetch, API_BASE } from '../../api.js'
 import {
-  IconHeart, IconShare, IconGrid, IconSparkles, IconStar,
+  IconHeart, IconShare, IconGrid, IconSparkles, IconStar, IconWhatsApp,
 } from '../components/icons.jsx'
 
-// ── Fabric fullness for yardage estimate ──────────────────────────────────────
-const FULLNESS = { pleated: 2.5, eyelet: 2.0, roman: 1.1, roller: 1.0 }
-function estimateFabric(czW, czH, type) {
-  const w = parseFloat(czW), h = parseFloat(czH)
-  if (!w || !h) return null
-  return Math.ceil((w / 100) * (FULLNESS[type] || 2.0) * (h / 100) * 10) / 10
-}
+// ── Vicky's WhatsApp number ───────────────────────────────────────────────────
+// Set VITE_VICKY_WHATSAPP in Netlify env vars (Israeli format, no + or spaces).
+// e.g. 972501234567
+const VICKY_WHATSAPP = import.meta.env.VITE_VICKY_WHATSAPP ?? ''
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -279,7 +276,9 @@ export default function Results({
 }) {
   const [activeIdx,   setActiveIdx]   = useState(0)
   const [saved,       setSaved]       = useState(new Set())
+  const [savedIdMap,  setSavedIdMap]  = useState({})   // activeIdx → Railway save id
   const [saving,      setSaving]      = useState(false)
+  const [sharing,     setSharing]     = useState(false)
   const [compareMode, setCompareMode] = useState(false)
   const [menuOpen,    setMenuOpen]    = useState(false)
   const toast    = useToast()
@@ -292,8 +291,23 @@ export default function Results({
   const isSource = activeIdx === -1
   const active   = isSource ? null : (results[activeIdx] ?? null)
 
-  const fabricMeters = estimateFabric(czWidthCm, czHeightCm, curtainType)
-  const viewerSrc    = isSource ? roomUrl : active?.imageUrl
+  const viewerSrc = isSource ? roomUrl : active?.imageUrl
+
+  // ── Save (shared helper — used by handleSave and handleWhatsAppShare) ────────
+  const _persistSave = async () => {
+    const blob = await fetch(active.imageUrl).then(r => r.blob())
+    const fd   = new FormData()
+    fd.append('image',        blob, 'curtain.png')
+    fd.append('fabric_name',  active.fabric.name)
+    fd.append('fabric_id',    active.fabric.id)
+    fd.append('curtain_type', curtainType)
+    const res  = await apiFetch('/saves', { method: 'POST', body: fd })
+    if (!res.ok) throw new Error(`Save failed: ${res.status}`)
+    const data = await res.json()
+    setSaved(prev => new Set(prev).add(activeIdx))
+    setSavedIdMap(prev => ({ ...prev, [activeIdx]: data.id }))
+    return data.id
+  }
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -305,37 +319,46 @@ export default function Results({
     }
     setSaving(true)
     try {
-      const blob = await fetch(active.imageUrl).then(r => r.blob())
-      const fd   = new FormData()
-      fd.append('image',        blob, 'curtain.png')
-      fd.append('fabric_name',  active.fabric.name)
-      fd.append('fabric_id',    active.fabric.id)
-      fd.append('curtain_type', curtainType)
-      const res = await apiFetch('/saves', { method: 'POST', body: fd })
-      if (res.ok) {
-        setSaved(prev => new Set(prev).add(activeIdx))
-        toast.show(t('app.results.toast_saved'), <IconHeart size={14} filled />)
-      } else {
-        toast.show(t('app.results.toast_save_failed'))
-      }
+      await _persistSave()
+      toast.show(t('app.results.toast_saved'), <IconHeart size={14} filled />)
     } catch {
-      toast.show(t('app.results.toast_network_error'))
+      toast.show(t('app.results.toast_save_failed'))
     } finally {
       setSaving(false)
     }
   }
 
-  // ── Share ─────────────────────────────────────────────────────────────────
-  const handleShare = async () => {
-    if (!active) return
+  // ── WhatsApp share ────────────────────────────────────────────────────────
+  const handleWhatsAppShare = async () => {
+    if (!active || sharing) return
+    setSharing(true)
     try {
-      if (navigator.share) {
-        await navigator.share({ title: active.fabric.name, text: `Curtain simulation: ${active.fabric.name}` })
-      } else {
-        await navigator.clipboard.writeText(window.location.href)
-        toast.show(t('app.results.toast_link_copied'))
-      }
-    } catch {/* user cancelled */ }
+      // Ensure there's a stable hosted URL — save now if we haven't yet
+      const saveId = savedIdMap[activeIdx] ?? await _persistSave()
+      const imageUrl = `${API_BASE}/saves/${saveId}/image`
+
+      const dims = czWidthCm && czHeightCm ? `${czWidthCm} × ${czHeightCm} cm` : null
+
+      const lines = [
+        'Hello Vicky! 👋',
+        'I used your curtain simulator and I love this option:',
+        '',
+        `🧵 ${active.fabric.name} (${active.fabric.collection} · ${curtainType})`,
+        dims && `🪟 Window: ${dims}`,
+        '',
+        '📸 Preview:',
+        imageUrl,
+        '',
+        "Can we discuss this? I'd love your advice!",
+      ].filter(l => l !== false && l !== null && l !== undefined).join('\n')
+
+      const waUrl = `https://wa.me/${VICKY_WHATSAPP}?text=${encodeURIComponent(lines)}`
+      window.open(waUrl, '_blank', 'noopener,noreferrer')
+    } catch {
+      toast.show('Could not prepare WhatsApp message — please try again.')
+    } finally {
+      setSharing(false)
+    }
   }
 
   // ── Swipe ─────────────────────────────────────────────────────────────────
@@ -373,11 +396,12 @@ export default function Results({
         color="rgb(210,70,80)"
       />
       <ActionBtn
-        icon={IconShare}
-        label={t('app.results.share')}
-        onClick={handleShare}
-        disabled={isSource}
+        icon={IconWhatsApp}
+        label={sharing ? '…' : 'WhatsApp'}
+        onClick={handleWhatsAppShare}
+        disabled={isSource || sharing}
         active={false}
+        color="#25D366"
       />
       <ActionBtn
         icon={IconGrid}
@@ -401,33 +425,6 @@ export default function Results({
           onSelect={() => setActiveIdx(i)}
         />
       ))}
-    </div>
-  )
-
-  // ── Quote strip ───────────────────────────────────────────────────────────
-  const quoteStrip = fabricMeters && active && !compareMode && (
-    <div style={{
-      margin: '14px 16px 0',
-      background: 'var(--accent-dim)',
-      border: '1px solid rgba(192,112,80,.2)',
-      borderRadius: 'var(--r-md)',
-      padding: '14px 16px',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-    }}>
-      <div>
-        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)' }}>{t('app.results.ready_to_order')}</div>
-        <div style={{ fontSize: '0.62rem', color: 'var(--text-2)', marginTop: 2 }}>
-          Est. {fabricMeters} m · ₪{Math.round(fabricMeters * active.fabric.price_per_m).toLocaleString()}
-        </div>
-      </div>
-      <button style={{
-        padding: '9px 16px', borderRadius: 'var(--r-sm)',
-        background: 'var(--accent)', color: '#fff',
-        border: 'none', fontSize: '0.76rem', fontWeight: 700,
-        cursor: 'pointer', flexShrink: 0,
-      }}>
-        {t('app.results.get_quote')}
-      </button>
     </div>
   )
 
@@ -616,9 +613,6 @@ export default function Results({
               </div>
               {thumbnailGrid(2)}
 
-              {/* Quote strip */}
-              {quoteStrip}
-
               {/* New room */}
               {!compareMode && (
                 <div style={{ padding: '14px 0 0' }}>
@@ -730,8 +724,6 @@ export default function Results({
               </div>
             )}
             {thumbnailGrid(2)}
-
-            {quoteStrip}
 
             {!compareMode && (
               <div style={{ padding: '14px 16px 0' }}>
