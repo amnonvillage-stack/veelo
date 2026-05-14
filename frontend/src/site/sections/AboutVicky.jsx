@@ -50,7 +50,7 @@ const STRIP = [
   { src: '/assets/site/about/ph04-a.webp', alt: 'Vicky interior design work' },
   { src: '/assets/site/about/ph04-b.webp', alt: 'Curtain detail' },
   { src: '/assets/site/about/ph04-c.webp', alt: 'Fabric selection' },
-  { src: '/assets/site/about/ph04-d.jpg',  alt: 'Design studio' },
+  { src: '/assets/site/about/ph04-d.webp', alt: 'Design studio' },
 ]
 
 export default function AboutVicky() {

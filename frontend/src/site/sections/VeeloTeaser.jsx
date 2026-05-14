@@ -33,15 +33,23 @@ export default function VeeloTeaser() {
           </div>
 
           <div className="veelo-teaser__media">
-            <img
-              src="/assets/sitePhotos/main_lay.jpg"
-              alt="Curtain visualiser preview on a window photo"
-              className="veelo-teaser__phone"
-              loading="lazy"
-              decoding="async"
-              width="1376"
-              height="768"
-            />
+            {/* <picture> serves WebP (55 KB) to modern browsers, JPG (109 KB)
+                as fallback. Both were compressed from the original 1.2 MB. */}
+            <picture>
+              <source
+                srcSet="/assets/sitePhotos/main_lay.webp"
+                type="image/webp"
+              />
+              <img
+                src="/assets/sitePhotos/main_lay.jpg"
+                alt="Curtain visualiser preview on a window photo"
+                className="veelo-teaser__phone"
+                loading="lazy"
+                decoding="async"
+                width="1376"
+                height="768"
+              />
+            </picture>
           </div>
         </div>
       </div>
