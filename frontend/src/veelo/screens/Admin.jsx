@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import TopBar from '../components/TopBar.jsx'
-import { apiFetch } from '../../api.js'
+import { apiFetch, API_BASE } from '../../api.js'
 
 const TYPES    = ['eyelet','pleated','roman','roller']
 const DENSITIES = ['sheer','light','medium','heavy','blackout']
@@ -481,7 +481,7 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
                 background: swatchBg(p.color_hex),
               }}>
                 <img
-                  src={p.swatch_path}
+                  src={`${API_BASE}${p.swatch_path}`}
                   alt={p.name}
                   style={{ width:'100%', height:'100%', objectFit:'cover' }}
                   onError={e => { e.target.style.display='none' }}

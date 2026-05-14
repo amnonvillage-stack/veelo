@@ -8,7 +8,7 @@ import BottomNav from '../components/BottomNav.jsx'
 import MobileMenu from '../components/MobileMenu.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
-import { apiFetch } from '../../api.js'
+import { apiFetch, API_BASE } from '../../api.js'
 import { IconSearch, IconX, IconCheck, IconScissors, IconSparkles } from '../components/icons.jsx'
 
 const DENSITY_KEYS = ['sheer', 'light', 'medium', 'heavy', 'blackout']
@@ -92,7 +92,7 @@ function FabricCard({ product, selected, onToggle }) {
         <SwatchBg hex={product.color_hex} style={{ position: 'absolute', inset: 0 }} />
         {product.swatch_path && !imgError && (
           <img
-            src={product.swatch_path}
+            src={`${API_BASE}${product.swatch_path}`}
             alt={product.name}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             onError={() => setImgError(true)}
