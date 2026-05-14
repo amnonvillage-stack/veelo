@@ -55,13 +55,16 @@ export default function CurtainType({ roomUrl, onBack, onDone }) {
             margin: '16px 0 20px',
             borderRadius: 'var(--r-md)',
             overflow: 'hidden',
-            height: 120,
+            maxHeight: 'min(38vh, 320px)',
             background: 'var(--surface-ink)',
             flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}>
             <img
               src={roomUrl} alt="Room"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
             />
           </div>
         )}
