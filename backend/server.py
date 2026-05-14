@@ -629,7 +629,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["Content-Type", "X-Admin-Key"],
+    allow_headers=["Content-Type", "X-Admin-Key", "X-Session-ID"],
 )
 
 SWATCHES_DIR = CATALOG_DIR / "swatches"
@@ -951,10 +951,11 @@ def status():
 
 @app.post("/saves")
 async def save_result(
-    image:        UploadFile = File(...),
-    fabric_name:  str = Form(""),
-    fabric_id:    str = Form(""),
-    curtain_type: str = Form(""),
+    image:           UploadFile = File(...),
+    fabric_name:     str = Form(""),
+    fabric_id:       str = Form(""),
+    curtain_type:    str = Form(""),
+    x_session_id:    Optional[str] = Header(None),
 ):
     save_id  = uuid.uuid4().hex[:12]
     save_dir = SAVES_DIR / save_id
@@ -971,6 +972,7 @@ async def save_result(
         "curtain_type": curtain_type,
         "created_at":   now_ts,                        # Unix timestamp for frontend formatRelative()
         "path":         f"/saves/{save_id}/image",     # URL the browser can load
+        "session_id":   x_session_id or "",            # anonymous session for per-user isolation
     }
     (save_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False))
     return {"ok": True, "id": save_id}
@@ -988,8 +990,8 @@ def get_save_image(save_id: str):
     return FileResponse(str(img_path), media_type="image/png")
 
 @app.get("/saves")
-def list_saves():
-    """Return all saved visualisations (meta only, no image bytes)."""
+def list_saves(x_session_id: Optional[str] = Header(None)):
+    """Return saved visualisations for the current session only."""
     saves = []
     for d in sorted(SAVES_DIR.iterdir(), reverse=True):
         meta_file = d / "meta.json"
@@ -999,14 +1001,19 @@ def list_saves():
                 # Back-fill path for saves written before this fix
                 if "path" not in meta:
                     meta["path"] = f"/saves/{d.name}/image"
+                # Filter: only return saves belonging to this session.
+                # Saves written before session isolation have no session_id — fall
+                # through so they're visible to whoever views them (legacy data).
+                if meta.get("session_id") and meta["session_id"] != (x_session_id or ""):
+                    continue
                 saves.append(meta)
             except Exception:
                 pass
     return saves
 
 @app.delete("/saves/{save_id}")
-def delete_save(save_id: str):
-    """Delete a saved visualisation (image + meta)."""
+def delete_save(save_id: str, x_session_id: Optional[str] = Header(None)):
+    """Delete a saved visualisation (image + meta). Session must match."""
     import shutil
     from fastapi import HTTPException
     # Sanitise: only hex chars allowed in save_id
@@ -1015,6 +1022,18 @@ def delete_save(save_id: str):
     save_dir = SAVES_DIR / save_id
     if not save_dir.exists():
         raise HTTPException(status_code=404, detail="Save not found")
+    meta_file = save_dir / "meta.json"
+    if meta_file.exists():
+        try:
+            meta = json.loads(meta_file.read_text())
+            owner = meta.get("session_id", "")
+            # If save has a session_id, requester must match it
+            if owner and owner != (x_session_id or ""):
+                raise HTTPException(status_code=403, detail="Not your save")
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # Corrupt meta — allow deletion anyway
     shutil.rmtree(save_dir)
     return {"ok": True}
 
