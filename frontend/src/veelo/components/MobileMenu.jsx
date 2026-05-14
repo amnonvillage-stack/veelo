@@ -5,7 +5,6 @@
 // Includes language toggle.
 
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useT } from '../../i18n/useT.js'
 import { useLocale } from '../../i18n/LocaleProvider.jsx'
 import { IconX } from './icons.jsx'
@@ -18,8 +17,7 @@ const NAV_ITEMS = [
 ]
 
 export default function MobileMenu({ isOpen, onClose }) {
-  const navigate = useNavigate()
-  const t        = useT()
+  const t = useT()
   const { locale, toggle } = useLocale()
 
   // Lock body scroll while open
@@ -36,7 +34,9 @@ export default function MobileMenu({ isOpen, onClose }) {
 
   const go = (hash) => {
     onClose()
-    navigate('/' + hash)
+    // Use a full navigation so the browser jumps to the correct section
+    // on the marketing page rather than staying inside the Veelo SPA route.
+    window.location.href = '/' + hash
   }
 
   return (
