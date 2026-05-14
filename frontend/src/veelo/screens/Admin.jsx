@@ -174,6 +174,19 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
 
       <div className="scroll" style={{ flex:1, padding:'0 20px 40px' }}>
 
+        {/* ── Admin key ──────────────────────────────────────────────── */}
+        <div style={{ marginBottom: 20 }}>
+          <Field label="Admin key">
+            <input
+              style={inputStyle}
+              type="password"
+              value={adminKey}
+              onChange={e => setAdminKey(e.target.value)}
+              placeholder="Required for add and delete"
+            />
+          </Field>
+        </div>
+
         {/* ── Debug settings ─────────────────────────────────────────── */}
         <div style={{
           background: debugMode ? 'rgba(192,112,80,.06)' : 'var(--surface)',
@@ -242,17 +255,6 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
           </div>
 
           <div style={{ padding:'18px', display:'flex', flexDirection:'column', gap:14 }}>
-
-            {/* Admin key */}
-            <Field label="Admin key" required>
-              <input
-                style={inputStyle}
-                type="password"
-                value={adminKey}
-                onChange={e => setAdminKey(e.target.value)}
-                placeholder="Enter the admin key set in Railway"
-              />
-            </Field>
 
             {/* Swatch upload */}
             <Field label="Swatch image" required>

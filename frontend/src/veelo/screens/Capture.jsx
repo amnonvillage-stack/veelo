@@ -151,7 +151,7 @@ function PreviewOverlay({ save, onClose, onDelete }) {
           {save.fabric_name || 'Saved curtain'}
         </div>
         <div style={{ color: 'rgba(255,255,255,.5)', fontSize: '0.7rem', marginTop: 4 }}>
-          {[save.curtain_type, formatRelative(save.created_at)].filter(Boolean).join(' · ')}
+          {[save.curtain_type, formatRelative(save.created_at, t)].filter(Boolean).join(' · ')}
         </div>
       </div>
       <div
