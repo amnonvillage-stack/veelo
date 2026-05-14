@@ -66,6 +66,7 @@ const EMPTY = {
 export default function Admin({ onBack, debugMode, onToggleDebug }) {
   const [products,  setProducts]  = useState([])
   const [form,      setForm]      = useState(EMPTY)
+  const [adminKey,  setAdminKey]  = useState('')
   const [swatchFile, setSwatchFile] = useState(null)
   const [swatchUrl,  setSwatchUrl]  = useState(null)
   const [saving,    setSaving]    = useState(false)
@@ -121,7 +122,10 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
     fd.append('currency',    form.currency)
 
     try {
-      const res = await apiFetch('/catalog/products', { method:'POST', body:fd })
+      const res = await apiFetch('/catalog/products', {
+        method:'POST', body:fd,
+        headers: adminKey ? { 'X-Admin-Key': adminKey } : {},
+      })
       if (!res.ok) throw new Error(await res.text())
       setSuccess(`"${form.name}" added to catalogue.`)
       setForm(EMPTY)
@@ -139,7 +143,10 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
     if (!window.confirm(`Remove "${product.name}" from the catalogue?`)) return
     setDeleting(product.id)
     try {
-      const res = await apiFetch(`/catalog/products/${product.id}`, { method:'DELETE' })
+      const res = await apiFetch(`/catalog/products/${product.id}`, {
+        method:'DELETE',
+        headers: adminKey ? { 'X-Admin-Key': adminKey } : {},
+      })
       if (!res.ok) throw new Error('Delete failed')
       setSuccess(`"${product.name}" removed.`)
       loadProducts()
@@ -236,6 +243,17 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
           </div>
 
           <div style={{ padding:'18px', display:'flex', flexDirection:'column', gap:14 }}>
+
+            {/* Admin key */}
+            <Field label="Admin key" required>
+              <input
+                style={inputStyle}
+                type="password"
+                value={adminKey}
+                onChange={e => setAdminKey(e.target.value)}
+                placeholder="Enter the admin key set in Railway"
+              />
+            </Field>
 
             {/* Swatch upload */}
             <Field label="Swatch image" required>
