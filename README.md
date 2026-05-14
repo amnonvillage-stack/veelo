@@ -10,7 +10,7 @@ Veelo is a curtain visualizer that turns a photo of your room into a render of y
 - **Backend:** FastAPI (`backend/`), Python 3.9+
 - **Image model:** Google Gemini 2.5/3.x Flash Image, via `google-genai`
 
-## Repo layout
+## Repo layou t
 
 ```
 .
