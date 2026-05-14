@@ -629,6 +629,23 @@ SWATCHES_DIR.mkdir(parents=True, exist_ok=True)
 def index():
     return {"service": "Veelo API", "status": "ok", "model": MODEL_NAME}
 
+@app.get("/debug/catalog")
+def debug_catalog():
+    """Dev diagnostic: shows catalog path and product count. Safe to leave public."""
+    f = CATALOG_DIR / "products.json"
+    try:
+        products = json.loads(f.read_text("utf-8")) if f.exists() else []
+        count = len(products)
+    except Exception as e:
+        count = f"error: {e}"
+    return {
+        "catalog_dir": str(CATALOG_DIR),
+        "products_json": str(f),
+        "exists": f.exists(),
+        "product_count": count,
+        "script_dir": str(SCRIPT_DIR),
+    }
+
 # ── Catalog — read ────────────────────────────────────────────────────────────
 def _read_catalog():
     f = CATALOG_DIR / "products.json"

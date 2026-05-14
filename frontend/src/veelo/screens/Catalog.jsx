@@ -182,9 +182,12 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
 
   useEffect(() => {
     apiFetch('/catalog')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then(data => { setProducts(data); setLoading(false) })
-      .catch(() => setLoading(false))
+      .catch(err => { console.error('[Catalog] fetch failed:', err); setLoading(false) })
   }, [])
 
   const visible = products.filter(p => {
