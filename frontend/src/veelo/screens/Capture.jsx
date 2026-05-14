@@ -162,8 +162,11 @@ function PreviewOverlay({ save, onClose, onDelete }) {
           src={`${API_BASE}${save.path}`} alt={save.fabric_name}
           onClick={e => e.stopPropagation()}
           onError={() => setImgFailed(true)}
+          draggable={false}
+          onContextMenu={e => e.preventDefault()}
           style={{
             maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain',
+            WebkitTouchCallout: 'none', userSelect: 'none',
             borderRadius: 'var(--r-md)', boxShadow: '0 8px 40px rgba(0,0,0,.6)',
           }}
         />

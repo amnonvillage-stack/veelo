@@ -444,7 +444,9 @@ export default function Results({
       <img
         src={viewerSrc}
         alt={isSource ? 'Original' : active?.fabric.name}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', WebkitTouchCallout: 'none', userSelect: 'none' }}
+        draggable={false}
+        onContextMenu={e => e.preventDefault()}
       />
 
       {/* Label overlay */}
@@ -534,7 +536,9 @@ export default function Results({
             <img
               src={viewerSrc}
               alt={isSource ? 'Original' : active?.fabric.name}
-              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', WebkitTouchCallout: 'none', userSelect: 'none' }}
+              draggable={false}
+              onContextMenu={e => e.preventDefault()}
             />
 
             {/* Label overlay */}
