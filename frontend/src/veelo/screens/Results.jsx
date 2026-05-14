@@ -339,17 +339,19 @@ export default function Results({
 
       const dims = czWidthCm && czHeightCm ? `${czWidthCm} × ${czHeightCm} cm` : null
 
+      const curtainLabel = t(`app.configure.${curtainType}`) || curtainType
+
       const lines = [
-        'Hello Vicky! 👋',
-        'I used your curtain simulator and I love this option:',
+        'שלום ויקי! 👋',
+        'השתמשתי בכלי ההדמיה שלך ואני אוהב/ת את האפשרות הזו:',
         '',
-        `🧵 ${active.fabric.name} (${active.fabric.collection} · ${curtainType})`,
-        dims && `🪟 Window: ${dims}`,
+        `🧵 ${active.fabric.name} (${active.fabric.collection} · ${curtainLabel})`,
+        dims && `🪟 חלון: ${dims}`,
         '',
-        '📸 Preview:',
+        '📸 תצוגה מקדימה:',
         imageUrl,
         '',
-        "Can we discuss this? I'd love your advice!",
+        'אפשר לדבר על זה? אשמח לייעוץ שלך!',
       ].filter(l => l !== false && l !== null && l !== undefined).join('\n')
 
       const waUrl = `https://wa.me/${VICKY_WHATSAPP}?text=${encodeURIComponent(lines)}`

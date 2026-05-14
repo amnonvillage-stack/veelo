@@ -122,16 +122,20 @@ function PreviewOverlay({ save, onClose, onDelete }) {
 
   const handleWhatsApp = () => {
     const imageUrl = `${API_BASE}${save.path}`
+    const curtainLabel = save.curtain_type
+      ? (t(`app.configure.${save.curtain_type}`) || save.curtain_type)
+      : null
+    const fabricLine = [save.fabric_name, curtainLabel].filter(Boolean).join(' · ')
     const lines = [
-      'Hello Vicky! 👋',
-      'I used your curtain simulator and I love this option:',
+      'שלום ויקי! 👋',
+      'השתמשתי בכלי ההדמיה שלך ואני אוהב/ת את האפשרות הזו:',
       '',
-      save.fabric_name && `🧵 ${save.fabric_name}${save.curtain_type ? ` · ${save.curtain_type}` : ''}`,
+      fabricLine && `🧵 ${fabricLine}`,
       '',
-      '📸 Preview:',
+      '📸 תצוגה מקדימה:',
       imageUrl,
       '',
-      "Can we discuss this? I'd love your advice!",
+      'אפשר לדבר על זה? אשמח לייעוץ שלך!',
     ].filter(l => l !== false && l !== null && l !== undefined).join('\n')
     window.open(`https://wa.me/${VICKY_WHATSAPP}?text=${encodeURIComponent(lines)}`, '_blank', 'noopener,noreferrer')
   }
