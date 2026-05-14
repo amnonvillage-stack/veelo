@@ -7,7 +7,7 @@ import BottomNav from '../components/BottomNav.jsx'
 import MobileMenu from '../components/MobileMenu.jsx'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { useT } from '../../i18n/useT.js'
-import { apiFetch } from '../../api.js'
+import { apiFetch, API_BASE } from '../../api.js'
 import {
   IconCamera, IconImage, IconSettings, IconLightbulb,
   IconUpload, IconHome, IconX, IconTrash, IconMenu,
@@ -53,7 +53,7 @@ function SaveCard({ save, onClick, onDelete }) {
     >
       <div style={{ height: 90, background: 'var(--surface-3)', position: 'relative' }}>
         <img
-          src={save.path} alt={label} loading="lazy"
+          src={`${API_BASE}${save.path}`} alt={label} loading="lazy"
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
         {/* Delete button — always visible on touch devices, hover-reveal on desktop */}
@@ -128,7 +128,7 @@ function PreviewOverlay({ save, onClose, onDelete }) {
       }}
     >
       <img
-        src={save.path} alt={save.fabric_name}
+        src={`${API_BASE}${save.path}`} alt={save.fabric_name}
         onClick={e => e.stopPropagation()}
         style={{
           maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain',
