@@ -382,7 +382,7 @@ export default function Configure({
           </div>
         </div>
 
-        <BottomNav activeIcon={IconCamera} activeLabel={t('app.precision.nav_label')} onMenu={() => setMenuOpen(true)} />
+        <BottomNav activeIcon={IconCamera} activeLabel={t('app.precision.nav_label')} onMenu={() => setMenuOpen(true)} hasPhoto={true} />
       </div>
     )
   }
@@ -445,7 +445,7 @@ export default function Configure({
         {controlsPanel(false)}
       </div>
 
-      <BottomNav activeIcon={IconCamera} activeLabel={t('app.configure.nav_label')} onMenu={() => setMenuOpen(true)} />
+      <BottomNav activeIcon={IconCamera} activeLabel={t('app.configure.nav_label')} onMenu={() => setMenuOpen(true)} hasPhoto={true} />
     </div>
   )
 }

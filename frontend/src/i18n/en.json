@@ -11,7 +11,8 @@
     "headline_2": "exactly like you.",
     "lede": "Vicky Israel designs interiors through fabric, light, and thread. Personal consultation, custom drapery, and textiles made to last a generation.",
     "cta_primary": "Book a consultation",
-    "cta_secondary": "See my work"
+    "cta_secondary": "See my work",
+    "cta_veelo": "Try the AI visualizer"
   },
   "about": {
     "eyebrow": "The designer",
@@ -135,6 +136,7 @@
       "heavy": "Heavy",
       "blackout": "Blackout",
       "out_of_stock": "Out of stock",
+      "type_locked": "set in previous step",
       "nav_label": "Fabrics"
     },
     "results": {

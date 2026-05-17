@@ -164,6 +164,21 @@
 }
 .btn-ghost-on-dark:hover { background: rgba(250, 246, 240, 0.08); border-color: var(--text-on-ink); }
 
+/* Veelo AI visualizer CTA — warm bronze outline, stands apart from service CTAs */
+.btn-veelo-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(192, 112, 80, 0.12);
+  color: #f0d4b8;
+  border-color: rgba(192, 112, 80, 0.55);
+}
+.btn-veelo-cta:hover {
+  background: rgba(192, 112, 80, 0.22);
+  border-color: rgba(240, 180, 120, 0.8);
+  color: #faf6f0;
+}
+
 /* ── Header ───────────────────────────────────────────────────────────────── */
 .site-header {
   position: sticky;

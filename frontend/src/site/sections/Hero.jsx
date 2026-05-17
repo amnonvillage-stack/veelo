@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useT } from '../../i18n/useT.js'
 import { useLocale } from '../../i18n/LocaleProvider.jsx'
 import HeroSlideshow from './HeroSlideshow.jsx'
@@ -41,9 +42,28 @@ export default function Hero() {
         <div className="hero__cta-row">
           <a href="#contact" className="btn btn-on-dark">{t('hero.cta_primary')}</a>
           <a href="#about" className="btn btn-ghost-on-dark">{t('hero.cta_secondary')}</a>
+          <Link to="/veelo" className="btn btn-veelo-cta">
+            <SparkleIcon />
+            {t('hero.cta_veelo')}
+          </Link>
         </div>
       </div>
     </section>
+  )
+}
+
+// ── SparkleIcon ───────────────────────────────────────────────────────────────
+// 4-point star used inside the Veelo CTA button. Inline SVG keeps it
+// pixel-sharp at any size without an extra network request.
+function SparkleIcon() {
+  return (
+    <svg
+      width="15" height="15" viewBox="0 0 20 20"
+      fill="currentColor" aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <path d="M10 0 L11.8 8.2 L20 10 L11.8 11.8 L10 20 L8.2 11.8 L0 10 L8.2 8.2 Z" />
+    </svg>
   )
 }
 

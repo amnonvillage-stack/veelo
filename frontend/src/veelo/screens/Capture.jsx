@@ -484,13 +484,13 @@ export default function Capture({ onRoomPicked, onAdmin }) {
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg)',
       }}>
-        <div>
+        <a href="/" aria-label="Back to Vicky Israel website" style={{ display: 'block', lineHeight: 0 }}>
           <img
             src="/logo.png"
             alt="Vicky Israel · Textile & Design Studio"
             style={{ height: isDesktop ? 52 : 44, width: 'auto', display: 'block' }}
           />
-        </div>
+        </a>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Hamburger — mobile only */}

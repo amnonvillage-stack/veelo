@@ -8,15 +8,35 @@
 //   activeLabel  — label for the centre tab
 //   onMenu       — optional callback when the Menu tab is tapped (mobile)
 //
-// The Home tab always navigates to '/' (Vicky Israel site) via React Router.
+// Left tab:   "Vicky Israel" when no photo loaded → goes to /
+//             "Visualizer"  when photo is loaded  → goes to /veelo (restart)
+// Centre tab: current screen indicator (active, non-clickable)
+// Right tab:  "Menu" — opens the slide-down navigation drawer
 
-import { useNavigate } from 'react-router-dom'
 import { useDesktop } from '../hooks/useDesktop.js'
 import { IconHome, IconMenu } from './icons.jsx'
 
-export default function BottomNav({ activeIcon: ActiveIcon, activeLabel, onMenu }) {
-  const navigate  = useNavigate()
+// Tiny "exit" arrow icon — shown when no photo is loaded.
+// Communicates "leave the tool and go back to the main site."
+function IconSiteArrow({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true">
+      <path d="M8 5H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-4" />
+      <path d="M11 3h6m0 0v6m0-6L9 11" />
+    </svg>
+  )
+}
+
+export default function BottomNav({ activeIcon: ActiveIcon, activeLabel, onMenu, hasPhoto = false }) {
   const isDesktop = useDesktop()
+
+  // When no photo: exit to Vicky Israel marketing site.
+  // When photo loaded: restart the visualizer flow (full reload resets state).
+  const leftLabel  = hasPhoto ? 'Visualizer' : 'Vicky Israel'
+  const leftAction = () => { window.location.href = hasPhoto ? '/veelo' : '/' }
+  const LeftIcon   = hasPhoto ? IconHome : IconSiteArrow
 
   if (isDesktop) {
     return (
@@ -36,11 +56,12 @@ export default function BottomNav({ activeIcon: ActiveIcon, activeLabel, onMenu 
         boxShadow: 'var(--shadow-md)',
       }}>
         <NavItem
-          label="Home"
-          icon={<IconHome size={18} />}
+          label={leftLabel}
+          icon={<LeftIcon size={18} />}
           active={false}
-          onClick={() => navigate('/veelo')}
+          onClick={leftAction}
           pill
+          muted={!hasPhoto}
         />
         <NavItem
           label={activeLabel}
@@ -74,10 +95,11 @@ export default function BottomNav({ activeIcon: ActiveIcon, activeLabel, onMenu 
       zIndex: 50,
     }}>
       <NavItem
-        label="Home"
-        icon={<IconHome size={22} />}
+        label={leftLabel}
+        icon={<LeftIcon size={20} />}
         active={false}
-        onClick={() => navigate('/veelo')}
+        onClick={leftAction}
+        muted={!hasPhoto}
       />
       <NavItem
         label={activeLabel}
@@ -95,7 +117,7 @@ export default function BottomNav({ activeIcon: ActiveIcon, activeLabel, onMenu 
   )
 }
 
-function NavItem({ label, icon, active, onClick, pill }) {
+function NavItem({ label, icon, active, onClick, pill, muted }) {
   if (pill) {
     return (
       <button
@@ -107,14 +129,15 @@ function NavItem({ label, icon, active, onClick, pill }) {
           padding: '7px 14px',
           borderRadius: 'var(--r-full)',
           background: active ? 'var(--accent)' : 'transparent',
-          color: active ? '#fff' : 'var(--text-3)',
+          color: active ? '#fff' : muted ? 'var(--text-4)' : 'var(--text-3)',
           border: 'none',
           cursor: onClick ? 'pointer' : 'default',
           transition: 'all var(--duration)',
-          fontSize: '0.72rem',
+          fontSize: muted ? '0.65rem' : '0.72rem',
           fontWeight: active ? 700 : 500,
           letterSpacing: '0.04em',
           whiteSpace: 'nowrap',
+          opacity: muted ? 0.7 : 1,
         }}
       >
         {icon}
@@ -134,12 +157,13 @@ function NavItem({ label, icon, active, onClick, pill }) {
         gap: 3,
         paddingTop: 8,
         paddingBottom: 4,
-        color: active ? 'var(--accent)' : 'var(--text-3)',
+        color: active ? 'var(--accent)' : muted ? 'var(--text-4)' : 'var(--text-3)',
         background: 'none',
         border: 'none',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'color var(--duration)',
         position: 'relative',
+        opacity: muted ? 0.65 : 1,
       }}
     >
       {/* Active indicator pill at top */}
