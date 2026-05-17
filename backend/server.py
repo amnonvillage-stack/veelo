@@ -203,12 +203,32 @@ SCRIPT_DIR  = Path(__file__).parent
 # In production: a Railway Volume is mounted at <SCRIPT_DIR>/data (i.e. /app/data).
 # One volume covers both saves/ and catalog/ so we never lose user data on redeploy.
 # In local dev: data/ is created next to server.py and gitignored.
-DATA_DIR     = SCRIPT_DIR / "data"
-SAVES_DIR    = DATA_DIR / "saves"
-CATALOG_DIR  = DATA_DIR / "catalog"
+DATA_DIR          = SCRIPT_DIR / "data"
+SAVES_DIR         = DATA_DIR / "saves"
+CATALOG_DIR       = DATA_DIR / "catalog"
+SITE_IMAGES_DIR   = DATA_DIR / "site_images" / "about"
+SITE_IMAGES_CFG   = DATA_DIR / "site_images_config.json"
 
 # The catalog committed to the repo — used to seed the volume on first boot.
 _DEFAULT_CATALOG_DIR = SCRIPT_DIR / "catalog"
+
+# Default site-images config — slots are None until admin uploads a replacement.
+_DEFAULT_SITE_CFG: dict = {
+    "collage": {"portrait": None, "fabrics": None, "styling": None},
+    "strip": [],
+}
+
+def _read_site_cfg() -> dict:
+    if SITE_IMAGES_CFG.exists():
+        try:
+            return json.loads(SITE_IMAGES_CFG.read_text())
+        except Exception:
+            pass
+    return json.loads(json.dumps(_DEFAULT_SITE_CFG))   # deep copy
+
+def _write_site_cfg(cfg: dict) -> None:
+    SITE_IMAGES_CFG.parent.mkdir(parents=True, exist_ok=True)
+    SITE_IMAGES_CFG.write_text(json.dumps(cfg, indent=2, ensure_ascii=False))
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -703,6 +723,85 @@ def admin_verify(x_admin_key: Optional[str] = Header(None)):
     """Lightweight endpoint the frontend uses to validate the admin key before unlocking the UI."""
     require_admin(x_admin_key)
     return {"ok": True}
+
+# ── Site-images management ────────────────────────────────────────────────────
+
+@app.get("/site-images/config")
+def site_images_config():
+    """Public endpoint — returns current image config. Slots are None if not yet overridden."""
+    return JSONResponse(content=_read_site_cfg())
+
+@app.post("/site-images/collage/{slot}")
+async def upload_collage_image(
+    slot: str,
+    file: UploadFile = File(...),
+    x_admin_key: Optional[str] = Header(None),
+):
+    """Replace one collage tile (portrait | fabrics | styling). Admin only."""
+    require_admin(x_admin_key)
+    if slot not in ("portrait", "fabrics", "styling"):
+        raise HTTPException(status_code=400, detail="Invalid slot. Use: portrait, fabrics, styling")
+
+    data = await validate_image_upload(file)
+    ext  = Path(file.filename or "image.webp").suffix.lower() or ".webp"
+    SITE_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    dest = SITE_IMAGES_DIR / f"collage-{slot}{ext}"
+    dest.write_bytes(data)
+
+    cfg = _read_site_cfg()
+    cfg["collage"][slot] = f"/site-images/files/about/collage-{slot}{ext}"
+    _write_site_cfg(cfg)
+    return {"url": cfg["collage"][slot]}
+
+@app.post("/site-images/strip")
+async def add_strip_image(
+    file: UploadFile = File(...),
+    alt: str = Form(default="Interior design work"),
+    x_admin_key: Optional[str] = Header(None),
+):
+    """Add a photo to the About strip. Admin only."""
+    require_admin(x_admin_key)
+    data = await validate_image_upload(file)
+    ext  = Path(file.filename or "image.webp").suffix.lower() or ".webp"
+    SITE_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f"strip-{uuid.uuid4().hex[:10]}{ext}"
+    (SITE_IMAGES_DIR / filename).write_bytes(data)
+
+    url = f"/site-images/files/about/{filename}"
+    cfg = _read_site_cfg()
+    cfg.setdefault("strip", []).append({"url": url, "alt": alt, "id": filename})
+    _write_site_cfg(cfg)
+    return {"url": url, "id": filename}
+
+@app.delete("/site-images/strip/{image_id}")
+def delete_strip_image(
+    image_id: str,
+    x_admin_key: Optional[str] = Header(None),
+):
+    """Remove a strip photo by its id. Admin only."""
+    require_admin(x_admin_key)
+    # Safety: no path traversal
+    if "/" in image_id or "\\" in image_id or ".." in image_id:
+        raise HTTPException(status_code=400, detail="Invalid image id")
+
+    cfg = _read_site_cfg()
+    cfg["strip"] = [s for s in cfg.get("strip", []) if s.get("id") != image_id]
+    _write_site_cfg(cfg)
+
+    f = SITE_IMAGES_DIR / image_id
+    if f.exists():
+        f.unlink()
+    return {"ok": True}
+
+@app.get("/site-images/files/{path:path}")
+def serve_site_image(path: str):
+    """Serve uploaded site images."""
+    resolved = (DATA_DIR / "site_images" / path).resolve()
+    if not str(resolved).startswith(str((DATA_DIR / "site_images").resolve())):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if not resolved.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(str(resolved))
 
 @app.get("/catalog")
 def catalog_list(type: Optional[str] = None):

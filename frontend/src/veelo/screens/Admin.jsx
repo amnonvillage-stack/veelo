@@ -159,16 +159,89 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
   // Restore key from sessionStorage so Vicky doesn't re-enter on every visit
   const [isUnlocked, setIsUnlocked] = useState(() => !!sessionStorage.getItem(ADMIN_SESSION_KEY))
   const [adminKey,   setAdminKey]   = useState(() => sessionStorage.getItem(ADMIN_SESSION_KEY) || '')
+  const [activeTab,  setActiveTab]  = useState('fabrics') // 'fabrics' | 'images'
 
   const [products,  setProducts]  = useState([])
   const [form,      setForm]      = useState(EMPTY)
   const [swatchFile, setSwatchFile] = useState(null)
   const [swatchUrl,  setSwatchUrl]  = useState(null)
   const [saving,    setSaving]    = useState(false)
-  const [deleting,  setDeleting]  = useState(null)  // product id being deleted
+  const [deleting,  setDeleting]  = useState(null)
   const [error,     setError]     = useState(null)
   const [success,   setSuccess]   = useState(null)
   const fileRef = useRef(null)
+
+  // ── Images tab ──────────────────────────────────────────────────────────────
+  const [imgCfg,       setImgCfg]     = useState(null)
+  const [imgUploading, setImgUploading] = useState(null) // slot key being uploaded
+  const [imgError,     setImgError]   = useState(null)
+  const [imgSuccess,   setImgSuccess] = useState(null)
+  const imgFileRef  = useRef(null)
+  const [pendingSlot, setPendingSlot] = useState(null)  // which slot the hidden input will feed
+
+  const loadImgCfg = () =>
+    apiFetch('/site-images/config')
+      .then(r => r.ok ? r.json() : null)
+      .then(cfg => { if (cfg) setImgCfg(cfg) })
+      .catch(() => {})
+
+  useEffect(() => { if (isUnlocked) loadImgCfg() }, [isUnlocked])
+
+  const triggerImgUpload = (slot) => {
+    setPendingSlot(slot)
+    setTimeout(() => imgFileRef.current?.click(), 0)
+  }
+
+  const handleImgFileChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !pendingSlot) return
+    e.target.value = ''
+
+    const isStrip = pendingSlot === 'strip'
+    const endpoint = isStrip ? '/site-images/strip' : `/site-images/collage/${pendingSlot}`
+
+    setImgUploading(pendingSlot)
+    setImgError(null)
+    setImgSuccess(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      if (isStrip) fd.append('alt', 'Interior design work')
+
+      const r = await apiFetch(endpoint, {
+        method: 'POST',
+        headers: { 'X-Admin-Key': adminKey },
+        body: fd,
+      })
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}))
+        throw new Error(d.detail || `HTTP ${r.status}`)
+      }
+      await loadImgCfg()
+      setImgSuccess(`${isStrip ? 'Strip photo' : pendingSlot} updated ✓`)
+      setTimeout(() => setImgSuccess(null), 3000)
+    } catch (err) {
+      setImgError(err.message)
+    } finally {
+      setImgUploading(null)
+      setPendingSlot(null)
+    }
+  }
+
+  const deleteStripPhoto = async (id) => {
+    if (!window.confirm('Remove this strip photo?')) return
+    setImgError(null)
+    try {
+      const r = await apiFetch(`/site-images/strip/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-Admin-Key': adminKey },
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      await loadImgCfg()
+    } catch (err) {
+      setImgError(err.message)
+    }
+  }
 
   const handleUnlock = (key) => {
     setAdminKey(key)
@@ -303,6 +376,154 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
         }
       />
 
+      {/* ── Tab bar ──────────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', gap: 0,
+        borderBottom: '1px solid var(--border)',
+        padding: '0 20px',
+        background: 'var(--bg)',
+        flexShrink: 0,
+      }}>
+        {[['fabrics','🧵 Fabrics'],['images','🖼 Images']].map(([id, label]) => (
+          <button key={id} onClick={() => setActiveTab(id)} style={{
+            padding: '12px 18px',
+            background: 'none', border: 'none',
+            borderBottom: `2px solid ${activeTab === id ? 'var(--accent)' : 'transparent'}`,
+            color: activeTab === id ? 'var(--accent)' : 'var(--text-3)',
+            fontWeight: activeTab === id ? 700 : 500,
+            fontSize: '0.78rem', letterSpacing: '0.04em',
+            cursor: 'pointer', transition: 'all var(--duration)',
+            marginBottom: -1,
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {/* Hidden file input shared by all image upload slots */}
+      <input ref={imgFileRef} type="file" accept="image/*"
+        style={{ display:'none' }} onChange={handleImgFileChange} />
+
+      {activeTab === 'images' ? (
+        <div className="scroll" style={{ flex:1, padding:'20px 20px 40px' }}>
+
+          {imgError   && <div style={{ color:'#c0392b', fontSize:'.8rem', marginBottom:14 }}>⚠ {imgError}</div>}
+          {imgSuccess && <div style={{ color:'#27ae60', fontSize:'.8rem', marginBottom:14 }}>✓ {imgSuccess}</div>}
+
+          {/* ── Collage tiles ──────────────────────────────────────── */}
+          <div style={{ fontSize:'.58rem', fontWeight:700, letterSpacing:'.14em',
+            textTransform:'uppercase', color:'var(--text-3)', marginBottom:12 }}>
+            Collage Tiles
+          </div>
+
+          {[
+            { slot:'portrait', label:'Portrait tile (large left)' },
+            { slot:'fabrics',  label:'Fabrics tile (top right)' },
+            { slot:'styling',  label:'Styling tile (bottom right)' },
+          ].map(({ slot, label }) => {
+            const current = imgCfg?.collage?.[slot]
+            const uploading = imgUploading === slot
+            return (
+              <div key={slot} style={{
+                display:'flex', alignItems:'center', gap:14,
+                background:'var(--surface)', border:'1px solid var(--border)',
+                borderRadius:'var(--r-md)', padding:'12px 14px', marginBottom:10,
+              }}>
+                {/* Thumbnail */}
+                <div style={{
+                  width:64, height:64, borderRadius:'var(--r-sm)',
+                  background:'var(--surface-2)', flexShrink:0, overflow:'hidden',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                  {current
+                    ? <img src={current} alt={slot}
+                        style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    : <span style={{ fontSize:'.6rem', color:'var(--text-4)', textAlign:'center', padding:4 }}>
+                        default
+                      </span>
+                  }
+                </div>
+
+                {/* Info + button */}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:'.78rem', fontWeight:600, color:'var(--ink)', marginBottom:3 }}>
+                    {label}
+                  </div>
+                  <div style={{ fontSize:'.65rem', color:'var(--text-4)', overflow:'hidden',
+                    textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {current ? current.split('/').pop() : 'Using default static image'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => triggerImgUpload(slot)}
+                  disabled={uploading}
+                  style={{
+                    padding:'7px 14px', borderRadius:'var(--r-sm)',
+                    background: uploading ? 'var(--surface-3)' : 'var(--ink)',
+                    color: uploading ? 'var(--text-3)' : 'var(--bg)',
+                    border:'none', fontSize:'.72rem', fontWeight:600,
+                    cursor: uploading ? 'not-allowed' : 'pointer', flexShrink:0,
+                  }}
+                >{uploading ? 'Uploading…' : current ? 'Replace' : 'Upload'}</button>
+              </div>
+            )
+          })}
+
+          {/* ── Strip photos ───────────────────────────────────────── */}
+          <div style={{ fontSize:'.58rem', fontWeight:700, letterSpacing:'.14em',
+            textTransform:'uppercase', color:'var(--text-3)', margin:'24px 0 12px' }}>
+            Strip Photos
+          </div>
+
+          {(imgCfg?.strip ?? []).map((photo) => (
+            <div key={photo.id} style={{
+              display:'flex', alignItems:'center', gap:14,
+              background:'var(--surface)', border:'1px solid var(--border)',
+              borderRadius:'var(--r-md)', padding:'10px 12px', marginBottom:8,
+            }}>
+              <div style={{
+                width:56, height:56, borderRadius:'var(--r-sm)',
+                overflow:'hidden', flexShrink:0,
+              }}>
+                <img src={photo.url} alt={photo.alt}
+                  style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+              </div>
+              <div style={{ flex:1, fontSize:'.72rem', color:'var(--ink)',
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {photo.alt || photo.id}
+              </div>
+              <button
+                onClick={() => deleteStripPhoto(photo.id)}
+                style={{
+                  padding:'6px 12px', borderRadius:'var(--r-sm)',
+                  background:'rgba(192,50,50,.08)', color:'#c03232',
+                  border:'1px solid rgba(192,50,50,.25)',
+                  fontSize:'.7rem', fontWeight:600, cursor:'pointer', flexShrink:0,
+                }}
+              >Remove</button>
+            </div>
+          ))}
+
+          {(imgCfg?.strip?.length ?? 0) === 0 && (
+            <div style={{ fontSize:'.75rem', color:'var(--text-4)',
+              padding:'12px 0', fontStyle:'italic' }}>
+              No custom strip photos yet — using the 4 default static images.
+            </div>
+          )}
+
+          <button
+            onClick={() => triggerImgUpload('strip')}
+            disabled={imgUploading === 'strip'}
+            style={{
+              marginTop:8, width:'100%', padding:'11px',
+              borderRadius:'var(--r-md)',
+              background: imgUploading === 'strip' ? 'var(--surface-3)' : 'var(--surface)',
+              border:'1.5px dashed var(--border)',
+              color:'var(--text-2)', fontSize:'.8rem', fontWeight:600,
+              cursor: imgUploading === 'strip' ? 'not-allowed' : 'pointer',
+            }}
+          >{imgUploading === 'strip' ? 'Uploading…' : '+ Add strip photo'}</button>
+
+        </div>
+      ) : (
       <div className="scroll" style={{ flex:1, padding:'0 20px 40px' }}>
 
         {/* ── Debug settings ─────────────────────────────────────────── */}
@@ -643,6 +864,7 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
         </div>
 
       </div>
+      )}
     </div>
   )
 }
