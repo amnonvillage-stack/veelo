@@ -456,7 +456,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
           </div>
         </div>
 
-        <BottomNav activeIcon={IconScissors} activeLabel={t('app.catalog.nav_label')} onMenu={() => setMenuOpen(true)} />
+        <BottomNav activeIcon={IconScissors} activeLabel={t('app.catalog.nav_label')} onMenu={() => setMenuOpen(true)} hasPhoto={true} />
       </div>
     )
   }
@@ -537,7 +537,7 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
 
       {visualiseFab}
 
-      <BottomNav activeIcon={IconScissors} activeLabel={t('app.catalog.nav_label')} onMenu={() => setMenuOpen(true)} />
+      <BottomNav activeIcon={IconScissors} activeLabel={t('app.catalog.nav_label')} onMenu={() => setMenuOpen(true)} hasPhoto={true} />
     </div>
   )
 }

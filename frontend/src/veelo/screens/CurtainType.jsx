@@ -180,7 +180,7 @@ export default function CurtainType({ roomUrl, onBack, onDone }) {
 
       </div>
 
-      <BottomNav activeIcon={IconScissors} activeLabel={t('app.curtain_type.nav_label')} />
+      <BottomNav activeIcon={IconScissors} activeLabel={t('app.curtain_type.nav_label')} hasPhoto={true} />
     </div>
   )
 }

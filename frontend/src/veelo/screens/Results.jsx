@@ -649,7 +649,7 @@ export default function Results({
         </div>
 
         <Toast visible={toast.visible} message={toast.message} icon={toast.icon} />
-        {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} onMenu={() => setMenuOpen(true)} />}
+        {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} onMenu={() => setMenuOpen(true)} hasPhoto={true} />}
       </div>
     )
   }
@@ -748,7 +748,7 @@ export default function Results({
       )}
 
       <Toast visible={toast.visible} message={toast.message} icon={toast.icon} />
-      {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} onMenu={() => setMenuOpen(true)} />}
+      {!compareMode && <BottomNav activeIcon={IconSparkles} activeLabel={t('app.results.nav_label')} onMenu={() => setMenuOpen(true)} hasPhoto={true} />}
     </div>
   )
 }
