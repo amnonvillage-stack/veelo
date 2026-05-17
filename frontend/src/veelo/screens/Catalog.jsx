@@ -245,39 +245,71 @@ export default function Catalog({ curtainType, onBack, onGenerate }) {
   )
 
   // Filter chips (shared)
-  const filterChips = (vertical) => (
-    <div style={{
-      display: 'flex',
-      flexDirection: vertical ? 'column' : 'row',
-      gap: 7,
-      padding: vertical ? '4px 0' : undefined,
-    }}>
-      {TYPE_FILTERS.map(tf => {
-        const active = filter === tf.value
-        return (
-          <button
-            key={tf.value}
-            onClick={() => setFilter(tf.value)}
-            style={{
-              flexShrink: 0,
-              padding: vertical ? '8px 12px' : '5px 14px',
-              borderRadius: 'var(--r-full)',
-              fontSize: '0.7rem',
-              fontWeight: active ? 700 : 500,
-              background: active ? 'var(--accent)' : 'var(--surface)',
-              border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-              color: active ? '#fff' : 'var(--text-2)',
-              transition: 'all var(--duration)',
-              cursor: 'pointer',
-              textAlign: vertical ? 'left' : 'center',
-            }}
-          >
-            {tf.label}
-          </button>
-        )
-      })}
-    </div>
-  )
+  // When curtainType is pre-selected from the CurtainType screen, the filter
+  // is locked — show only the active chip as a non-interactive badge so the
+  // user knows the type was chosen in the previous step.
+  const filterChips = (vertical) => {
+    if (curtainType) {
+      const label = t(`app.catalog.${curtainType}`)
+      return (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 7,
+          padding: vertical ? '4px 0' : undefined,
+        }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: vertical ? '8px 12px' : '5px 14px',
+            borderRadius: 'var(--r-full)',
+            fontSize: '0.7rem', fontWeight: 700,
+            background: 'var(--accent)',
+            border: '1.5px solid var(--accent)',
+            color: '#fff',
+          }}>
+            🔒 {label}
+          </span>
+          <span style={{ fontSize: '0.62rem', color: 'var(--text-4)' }}>
+            {t('app.catalog.type_locked')}
+          </span>
+        </div>
+      )
+    }
+
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: vertical ? 'column' : 'row',
+        gap: 7,
+        padding: vertical ? '4px 0' : undefined,
+      }}>
+        {TYPE_FILTERS.map(tf => {
+          const active = filter === tf.value
+          return (
+            <button
+              key={tf.value}
+              onClick={() => setFilter(tf.value)}
+              style={{
+                flexShrink: 0,
+                padding: vertical ? '8px 12px' : '5px 14px',
+                borderRadius: 'var(--r-full)',
+                fontSize: '0.7rem',
+                fontWeight: active ? 700 : 500,
+                background: active ? 'var(--accent)' : 'var(--surface)',
+                border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                color: active ? '#fff' : 'var(--text-2)',
+                transition: 'all var(--duration)',
+                cursor: 'pointer',
+                textAlign: vertical ? 'left' : 'center',
+              }}
+            >
+              {tf.label}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
 
   // Visualise FAB
   const visualiseFab = (

@@ -3,8 +3,9 @@
 // (corner-marking + dimensions) for photos with multiple windows.
 
 import { useState } from 'react'
-import TopBar    from '../components/TopBar.jsx'
-import BottomNav from '../components/BottomNav.jsx'
+import TopBar      from '../components/TopBar.jsx'
+import BottomNav   from '../components/BottomNav.jsx'
+import MobileMenu  from '../components/MobileMenu.jsx'
 import { useT } from '../../i18n/useT.js'
 import {
   IconCurtainPleated, IconCurtainEyelet,
@@ -22,6 +23,7 @@ export default function CurtainType({ roomUrl, onBack, onDone }) {
   const t = useT()
   const [selectedType, setSelectedType] = useState('')
   const [precision,    setPrecision]    = useState(false)
+  const [menuOpen,     setMenuOpen]     = useState(false)
 
   const stepIndicator = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -180,7 +182,8 @@ export default function CurtainType({ roomUrl, onBack, onDone }) {
 
       </div>
 
-      <BottomNav activeIcon={IconScissors} activeLabel={t('app.curtain_type.nav_label')} hasPhoto={true} />
+      <BottomNav activeIcon={IconScissors} activeLabel={t('app.curtain_type.nav_label')} hasPhoto={true} onMenu={() => setMenuOpen(true)} />
+      <MobileMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   )
 }

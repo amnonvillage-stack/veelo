@@ -136,6 +136,7 @@
       "heavy": "Heavy",
       "blackout": "Blackout",
       "out_of_stock": "Out of stock",
+      "type_locked": "set in previous step",
       "nav_label": "Fabrics"
     },
     "results": {
