@@ -10,7 +10,7 @@ import ContactBlock from './sections/ContactBlock.jsx'
 export default function Landing() {
   return (
     <>
-      <section id="about"><Hero /></section>
+      <section><Hero /></section>
       <section id="studio"><AboutVicky /></section>
       <section id="veelo"><VeeloTeaser /></section>
       <section id="contact"><ContactBlock /></section>
