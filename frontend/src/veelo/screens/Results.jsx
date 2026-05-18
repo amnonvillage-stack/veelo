@@ -197,7 +197,7 @@ function CompareThumbnail({ result, rank, selected, onSelect }) {
     <ThumbnailCard
       imgSrc={result.imageUrl}
       title={result.fabric.name}
-      subtitle={`₪${result.fabric.price_per_m} / m`}
+      subtitle={null}
       badge={rank === 0 ? { label: t('app.results.badge_top'), accent: true } : null}
       selected={selected}
       onSelect={() => onSelect(result)}
@@ -220,8 +220,11 @@ function ThumbnailCard({ imgSrc, title, subtitle, badge, selected, onSelect }) {
         background: 'var(--surface)',
       }}
     >
-      <div style={{ height: 130, background: 'var(--surface-ink)', position: 'relative', overflow: 'hidden' }}>
-        <img src={imgSrc} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      <div
+        style={{ height: 130, background: 'var(--surface-ink)', position: 'relative', overflow: 'hidden' }}
+        onContextMenu={e => e.preventDefault()}
+      >
+        <img src={imgSrc} alt={title} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
         {badge && (
           <div style={{
             position: 'absolute', top: 7, left: 7,
@@ -440,13 +443,13 @@ export default function Results({
       }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onContextMenu={e => e.preventDefault()}
     >
       <img
         src={viewerSrc}
         alt={isSource ? 'Original' : active?.fabric.name}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', WebkitTouchCallout: 'none', userSelect: 'none' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', WebkitTouchCallout: 'none', userSelect: 'none', pointerEvents: 'none' }}
         draggable={false}
-        onContextMenu={e => e.preventDefault()}
       />
 
       {/* Label overlay */}
@@ -469,9 +472,6 @@ export default function Results({
               </div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.1 }}>
                 {active.fabric.name}
-              </div>
-              <div style={{ fontSize: '0.62rem', color: 'var(--text-2)', marginTop: 2 }}>
-                ₪{active.fabric.price_per_m} / m
               </div>
             </>
           )}
@@ -532,13 +532,13 @@ export default function Results({
           <div style={{ position: 'relative', background: 'var(--surface-ink)', overflow: 'hidden' }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            onContextMenu={e => e.preventDefault()}
           >
             <img
               src={viewerSrc}
               alt={isSource ? 'Original' : active?.fabric.name}
-              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', WebkitTouchCallout: 'none', userSelect: 'none' }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', WebkitTouchCallout: 'none', userSelect: 'none', pointerEvents: 'none' }}
               draggable={false}
-              onContextMenu={e => e.preventDefault()}
             />
 
             {/* Label overlay */}
@@ -561,9 +561,6 @@ export default function Results({
                     </div>
                     <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.1 }}>
                       {active.fabric.name}
-                    </div>
-                    <div style={{ fontSize: '0.66rem', color: 'var(--text-2)', marginTop: 3 }}>
-                      ₪{active.fabric.price_per_m} / m
                     </div>
                   </>
                 )}
@@ -598,9 +595,6 @@ export default function Results({
                 </div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', fontWeight: 400, color: 'var(--ink)', lineHeight: 1.1 }}>
                   {active.fabric.name}
-                </div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ink)', marginTop: 6 }}>
-                  ₪{active.fabric.price_per_m}<span style={{ fontWeight: 400, color: 'var(--text-3)', fontSize: '0.68rem' }}> / m</span>
                 </div>
               </div>
             )}

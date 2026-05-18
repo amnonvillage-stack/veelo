@@ -83,7 +83,12 @@
       "precision_label": "יש יותר מחלון אחד, או שצריך דיוק",
       "precision_hint": "תסמנו את אזור החלון המדויק ותוכלו להזין מידות",
       "continue": "לבחירת בד",
-      "nav_label": "סוג"
+      "nav_label": "סוג",
+      "desc_eyelet": "טבעות על מוט · מודרני ואוורירי",
+      "desc_pleated": "קפלים מחויטים · אלגנטיות קלאסית",
+      "desc_roman": "קפלים אופקיים · מסודר ונקי",
+      "desc_roller": "גלילה חלקה · מינימלי ומדויק",
+      "desc_zebra": "פסים שקופים ואטומים · יום ולילה"
     },
     "precision": {
       "title": "סמנו את אזור החלון",
@@ -97,7 +102,7 @@
       "clear": "נקה",
       "curtain_type": "סוג הווילון",
       "pleated": "קפלים",
-      "eyelet": "עיגולים",
+      "eyelet": "השחלה",
       "roman": "רומי",
       "roller": "רולר",
       "actual_size": "מידות אמיתיות",
@@ -113,7 +118,8 @@
       "corner_of": "מתוך 4 —",
       "corner_to_go": "נותרו",
       "no_photo": "לא נטענה תמונת חדר",
-      "nav_label": "הגדרות"
+      "nav_label": "הגדרות",
+      "zebra": "זברה"
     },
     "catalog": {
       "title": "בחירת בד",
@@ -127,7 +133,7 @@
       "selected_label": "נבחרו",
       "filter_all": "הכל",
       "pleated": "קפלים",
-      "eyelet": "עיגולים",
+      "eyelet": "השחלה",
       "roman": "רומי",
       "roller": "רולר",
       "sheer": "שיפון",
@@ -137,7 +143,8 @@
       "blackout": "בלאקאאוט",
       "out_of_stock": "אזל מהמלאי",
       "type_locked": "נבחר בשלב הקודם",
-      "nav_label": "בדים"
+      "nav_label": "בדים",
+      "zebra": "זברה"
     },
     "results": {
       "title": "תוצאות",

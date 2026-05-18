@@ -53,10 +53,14 @@ function SaveCard({ save, onClick, onDelete }) {
         position: 'relative',
       }}
     >
-      <div style={{ height: 90, background: 'var(--surface-3)', position: 'relative' }}>
+      <div
+        style={{ height: 90, background: 'var(--surface-3)', position: 'relative' }}
+        onContextMenu={e => e.preventDefault()}
+      >
         <img
           src={`${API_BASE}${save.path}`} alt={label} loading="lazy"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          draggable={false}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
         />
         {/* Delete button — always visible on touch devices, hover-reveal on desktop */}
         <button
