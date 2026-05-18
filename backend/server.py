@@ -14,7 +14,7 @@ Manual setup:
 Server: http://localhost:8000
 """
 
-import base64, io, json, os, re, shutil, time, sys, uuid
+import asyncio, base64, io, json, os, re, shutil, time, sys, uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -1026,13 +1026,25 @@ async def analyze(
 
         prompt = ANALYSIS_PROMPT.format(selection_context=sel_context)
 
-        response = client.models.generate_content(
-            model=TEXT_MODEL,
-            contents=[
-                types.Part.from_bytes(data=pil_to_bytes(analysis_img), mime_type="image/jpeg"),
-                types.Part.from_text(text=prompt),
-            ],
-        )
+        # Run blocking Gemini SDK call in a thread so we don't stall the event
+        # loop, and wrap it with a 25-second timeout (frontend allows 30).
+        def _call_gemini():
+            return client.models.generate_content(
+                model=TEXT_MODEL,
+                contents=[
+                    types.Part.from_bytes(data=pil_to_bytes(analysis_img), mime_type="image/jpeg"),
+                    types.Part.from_text(text=prompt),
+                ],
+            )
+
+        try:
+            response = await asyncio.wait_for(
+                asyncio.to_thread(_call_gemini),
+                timeout=25.0,
+            )
+        except asyncio.TimeoutError:
+            print(f"  ⏱ Analysis timed out after 25s — returning empty analysis")
+            return JSONResponse({"ok": False, "analysis": None, "error": "analysis_timeout"})
 
         raw = response.text.strip()
         # Strip markdown code fences if present
