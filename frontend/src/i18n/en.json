@@ -83,7 +83,12 @@
       "precision_label": "Multiple windows, or need precision",
       "precision_hint": "You'll mark the exact window area and optionally enter dimensions",
       "continue": "Choose Fabric",
-      "nav_label": "Type"
+      "nav_label": "Type",
+      "desc_eyelet": "Rings on a rod · Modern & airy",
+      "desc_pleated": "Tailored folds · Classic elegance",
+      "desc_roman": "Clean horizontal folds · Structured",
+      "desc_roller": "Smooth roll-up · Minimal & sleek",
+      "desc_zebra": "Sheer & opaque stripes · Day & night"
     },
     "precision": {
       "title": "Mark Window Area",
@@ -113,7 +118,8 @@
       "corner_of": "of 4 placed —",
       "corner_to_go": "to go",
       "no_photo": "No room photo loaded",
-      "nav_label": "Configure"
+      "nav_label": "Configure",
+      "zebra": "Zebra"
     },
     "catalog": {
       "title": "Choose Fabric",
@@ -137,7 +143,8 @@
       "blackout": "Blackout",
       "out_of_stock": "Out of stock",
       "type_locked": "set in previous step",
-      "nav_label": "Fabrics"
+      "nav_label": "Fabrics",
+      "zebra": "Zebra"
     },
     "results": {
       "title": "Results",
