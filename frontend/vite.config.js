@@ -82,11 +82,13 @@ export default defineConfig({
   plugins: [react(), sharedAssets()],
   server: {
     proxy: {
-      '/analyze':  'http://localhost:8000',
-      '/generate': 'http://localhost:8000',
-      '/catalog':  'http://localhost:8000',   // covers /catalog/swatches/* too
-      '/saves':    'http://localhost:8000',
-      '/status':   'http://localhost:8000',
+      '/analyze':      'http://localhost:8000',
+      '/generate':     'http://localhost:8000',
+      '/catalog':      'http://localhost:8000',   // covers /catalog/swatches/* too
+      '/saves':        'http://localhost:8000',
+      '/status':       'http://localhost:8000',
+      '/site-images':  'http://localhost:8000',   // about-section image management
+      '/admin':        'http://localhost:8000',   // admin key verification
     }
   }
 })

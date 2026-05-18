@@ -141,22 +141,42 @@ export default function VeeloApp() {
     setAnalysing(true)
     setScreen('results')
 
-    // Step 1: Analyse — pass the curtain quad as the window selection
-    let analysisResult = null
-    try {
-      const fd = new FormData()
-      fd.append('room_image', roomFile)
-      if (curtainPoints.length === 4) fd.append('selection', JSON.stringify(curtainPoints))
-      const r    = await apiFetch('/analyze', { method: 'POST', body: fd })
-      const data = r.ok ? await r.json() : null
-      if (data?.ok && data.analysis) {
-        analysisResult = data.analysis
-        setAnalysis(analysisResult)
+    // Step 1 + 2 run concurrently:
+    //   Analysis fires immediately but generation doesn't wait for it — it uses
+    //   whatever the analysis returned if it finished in time, otherwise null.
+    //   This keeps the UI moving and eliminates the "stuck on Analysing" problem.
+    const analyseAbort = new AbortController()
+    const analyseTimer = setTimeout(() => analyseAbort.abort(), 12_000) // 12s max
+
+    const analysePromise = (async () => {
+      try {
+        const fd = new FormData()
+        fd.append('room_image', roomFile)
+        if (curtainPoints.length === 4) fd.append('selection', JSON.stringify(curtainPoints))
+        const r    = await apiFetch('/analyze', { method: 'POST', body: fd, signal: analyseAbort.signal })
+        const data = r.ok ? await r.json() : null
+        if (data?.ok && data.analysis) {
+          setAnalysis(data.analysis)
+          return data.analysis
+        }
+      } catch (e) {
+        console.warn('Analysis failed or timed out, continuing without it:', e)
+      } finally {
+        clearTimeout(analyseTimer)
       }
-    } catch (e) {
-      console.warn('Analysis failed, continuing without it:', e)
-    }
-    setAnalysing(false)
+      return null
+    })()
+
+    // Clear the "Analysing" spinner after a short visual beat (≤1.5 s),
+    // then let generation begin regardless of whether analysis has finished.
+    const ANALYSE_SHOW_MS = 1_500
+    const [analysisResult] = await Promise.all([
+      analysePromise,
+      new Promise(res => setTimeout(res, ANALYSE_SHOW_MS)),
+    ]).then(async ([analysis]) => {
+      setAnalysing(false)
+      return [analysis]
+    })
 
     // Step 2a: Debug mode — dry-run to inspect prompt before generating
     if (debugMode && fabrics.length > 0) {
