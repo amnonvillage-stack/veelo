@@ -69,7 +69,7 @@ except ImportError:
 try:
     from google import genai
     from google.genai import types
-    from PIL import Image
+    from PIL import Image, ImageOps
 except ImportError:
     MISSING.append("google-genai Pillow")
 
@@ -1034,7 +1034,7 @@ async def analyze(
     t0 = time.time()
     try:
         room_bytes = await validate_image_upload(room_image, "room_image")
-        room_pil   = Image.open(io.BytesIO(room_bytes)).convert("RGB")
+        room_pil   = ImageOps.exif_transpose(Image.open(io.BytesIO(room_bytes))).convert("RGB")
         img_w, img_h = room_pil.size
 
         # Downscale for analysis (text model, no need for full res)
@@ -1232,7 +1232,7 @@ async def generate(
         # ── Load room image ───────────────────────────────────────────────────
         room_bytes = await validate_image_upload(room_image, "room_image")
         try:
-            room_pil = Image.open(io.BytesIO(room_bytes)).convert("RGB")
+            room_pil = ImageOps.exif_transpose(Image.open(io.BytesIO(room_bytes))).convert("RGB")
         except Exception:
             return JSONResponse({"error": "room_image is not a valid image"}, status_code=400)
 
