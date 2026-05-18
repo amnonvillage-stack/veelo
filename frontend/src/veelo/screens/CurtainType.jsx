@@ -47,12 +47,6 @@ const CURTAIN_TYPES = [
     descKey: 'app.curtain_type.desc_roller',
     svgFill: '#8C7B68',
   },
-  {
-    value:   'zebra',
-    photo:   '/assets/site/curtain-types/zebra.png',
-    descKey: 'app.curtain_type.desc_zebra',
-    svgFill: '#A09080',
-  },
 ]
 
 // ── Fallback SVG icons (shown until real photos arrive) ───────────────────────
