@@ -198,7 +198,12 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
     e.target.value = ''
 
     const isStrip = pendingSlot === 'strip'
-    const endpoint = isStrip ? '/site-images/strip' : `/site-images/collage/${pendingSlot}`
+    const heroMatch = pendingSlot.match(/^hero-(\d)$/)
+    const endpoint = isStrip
+      ? '/site-images/strip'
+      : heroMatch
+        ? `/site-images/hero/${heroMatch[1]}`
+        : `/site-images/collage/${pendingSlot}`
 
     setImgUploading(pendingSlot)
     setImgError(null)
@@ -218,7 +223,8 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
         throw new Error(d.detail || `HTTP ${r.status}`)
       }
       await loadImgCfg()
-      setImgSuccess(`${isStrip ? 'Strip photo' : pendingSlot} updated ✓`)
+      const label = isStrip ? 'Strip photo' : heroMatch ? `Hero slide ${heroMatch[1]}` : pendingSlot
+      setImgSuccess(`${label} updated ✓`)
       setTimeout(() => setImgSuccess(null), 3000)
     } catch (err) {
       setImgError(err.message)
@@ -407,6 +413,91 @@ export default function Admin({ onBack, debugMode, onToggleDebug }) {
 
           {imgError   && <div style={{ color:'#c0392b', fontSize:'.8rem', marginBottom:14 }}>⚠ {imgError}</div>}
           {imgSuccess && <div style={{ color:'#27ae60', fontSize:'.8rem', marginBottom:14 }}>✓ {imgSuccess}</div>}
+
+          {/* ── Hero slideshow ─────────────────────────────────────── */}
+          <div style={{ fontSize:'.58rem', fontWeight:700, letterSpacing:'.14em',
+            textTransform:'uppercase', color:'var(--text-3)', marginBottom:12 }}>
+            Hero Slideshow · Breathing images
+          </div>
+
+          {[
+            { index:0, label:'Slide 1 (first, LCP)' },
+            { index:1, label:'Slide 2' },
+            { index:2, label:'Slide 3' },
+          ].map(({ index, label }) => {
+            const current   = imgCfg?.hero?.[index]
+            const slotKey   = `hero-${index}`
+            const uploading = imgUploading === slotKey
+            return (
+              <div key={index} style={{
+                display:'flex', alignItems:'center', gap:14,
+                background:'var(--surface)', border:'1px solid var(--border)',
+                borderRadius:'var(--r-md)', padding:'12px 14px', marginBottom:10,
+              }}>
+                <div style={{
+                  width:80, height:52, borderRadius:'var(--r-sm)',
+                  background:'var(--surface-2)', flexShrink:0, overflow:'hidden',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                  {current
+                    ? <img src={`${API_BASE}${current}`} alt={label}
+                        style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    : <span style={{ fontSize:'.6rem', color:'var(--text-4)', textAlign:'center', padding:4 }}>
+                        default
+                      </span>
+                  }
+                </div>
+
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:'.78rem', fontWeight:600, color:'var(--ink)', marginBottom:3 }}>
+                    {label}
+                  </div>
+                  <div style={{ fontSize:'.65rem', color:'var(--text-4)', overflow:'hidden',
+                    textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {current ? current.split('/').pop() : `Using default slide-${index + 1}`}
+                  </div>
+                </div>
+
+                <div style={{ display:'flex', flexDirection:'column', gap:6, flexShrink:0 }}>
+                  <button
+                    onClick={() => triggerImgUpload(slotKey)}
+                    disabled={uploading}
+                    style={{
+                      padding:'6px 12px', borderRadius:'var(--r-sm)',
+                      background: uploading ? 'var(--surface-3)' : 'var(--ink)',
+                      color: uploading ? 'var(--text-3)' : 'var(--bg)',
+                      border:'none', fontSize:'.7rem', fontWeight:600,
+                      cursor: uploading ? 'not-allowed' : 'pointer',
+                    }}
+                  >{uploading ? 'Uploading…' : current ? 'Replace' : 'Upload'}</button>
+
+                  {current && (
+                    <button
+                      onClick={async () => {
+                        setImgError(null)
+                        try {
+                          const r = await apiFetch(`/site-images/hero/${index}`, {
+                            method: 'DELETE',
+                            headers: { 'X-Admin-Key': adminKey },
+                          })
+                          if (!r.ok) throw new Error(`HTTP ${r.status}`)
+                          await loadImgCfg()
+                        } catch (err) { setImgError(err.message) }
+                      }}
+                      style={{
+                        padding:'5px 12px', borderRadius:'var(--r-sm)',
+                        background:'rgba(192,50,50,.08)', color:'#c03232',
+                        border:'1px solid rgba(192,50,50,.25)',
+                        fontSize:'.68rem', fontWeight:600, cursor:'pointer',
+                      }}
+                    >Reset</button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+
+          <div style={{ height:1, background:'var(--border)', margin:'20px 0' }} />
 
           {/* ── Collage tiles ──────────────────────────────────────── */}
           <div style={{ fontSize:'.58rem', fontWeight:700, letterSpacing:'.14em',

@@ -216,6 +216,7 @@ _DEFAULT_CATALOG_DIR = SCRIPT_DIR / "catalog"
 _DEFAULT_SITE_CFG: dict = {
     "collage": {"portrait": None, "fabrics": None, "styling": None},
     "strip": [],
+    "hero": [None, None, None],   # up to 3 hero slideshow overrides
 }
 
 def _read_site_cfg() -> dict:
@@ -791,6 +792,62 @@ def delete_strip_image(
     f = SITE_IMAGES_DIR / image_id
     if f.exists():
         f.unlink()
+    return {"ok": True}
+
+@app.post("/site-images/hero/{index}")
+async def upload_hero_image(
+    index: int,
+    file: UploadFile = File(...),
+    x_admin_key: Optional[str] = Header(None),
+):
+    """Replace one hero slideshow image (index 0–2). Admin only."""
+    require_admin(x_admin_key)
+    if index not in (0, 1, 2):
+        raise HTTPException(status_code=400, detail="Invalid index. Use 0, 1, or 2.")
+
+    data = await validate_image_upload(file)
+    ext  = Path(file.filename or "image.webp").suffix.lower() or ".webp"
+    SITE_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    dest = SITE_IMAGES_DIR / f"hero-{index}{ext}"
+    dest.write_bytes(data)
+
+    url = f"/site-images/files/about/hero-{index}{ext}"
+    cfg = _read_site_cfg()
+    hero = cfg.setdefault("hero", [None, None, None])
+    # Ensure list is long enough
+    while len(hero) <= index:
+        hero.append(None)
+    hero[index] = url
+    cfg["hero"] = hero
+    _write_site_cfg(cfg)
+    return {"url": url, "index": index}
+
+@app.delete("/site-images/hero/{index}")
+def delete_hero_image(
+    index: int,
+    x_admin_key: Optional[str] = Header(None),
+):
+    """Reset a hero slide back to its default static image. Admin only."""
+    require_admin(x_admin_key)
+    if index not in (0, 1, 2):
+        raise HTTPException(status_code=400, detail="Invalid index.")
+
+    cfg  = _read_site_cfg()
+    hero = cfg.setdefault("hero", [None, None, None])
+    while len(hero) <= index:
+        hero.append(None)
+
+    # Remove the file if it exists
+    old_url = hero[index]
+    if old_url:
+        fname = old_url.split("/")[-1]
+        f = SITE_IMAGES_DIR / fname
+        if f.exists():
+            f.unlink()
+
+    hero[index] = None
+    cfg["hero"]  = hero
+    _write_site_cfg(cfg)
     return {"ok": True}
 
 @app.get("/site-images/files/{path:path}")

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { API_BASE } from '../../api.js'
 
 // HeroSlideshow — slow editorial crossfade between 3 photographs of Vicky's
 // installations. Each slide drifts (Ken-Burns: ~6% scale, gentle pan) while
@@ -60,7 +61,16 @@ const HOLD_MS = 7000
 
 export default function HeroSlideshow({ locale = 'en' }) {
   const [active, setActive] = useState(0)
+  const [heroOverrides, setHeroOverrides] = useState([])
   const reducedMotion = useReducedMotion()
+
+  // Fetch admin-uploaded overrides; fail silently so static defaults always work
+  useEffect(() => {
+    fetch(`${API_BASE}/site-images/config`)
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null)
+      .then(cfg => { if (cfg?.hero) setHeroOverrides(cfg.hero) })
+  }, [])
   const intervalRef = useRef(null)
 
   useEffect(() => {
@@ -91,25 +101,38 @@ export default function HeroSlideshow({ locale = 'en' }) {
       {SLIDES.map((slide, i) => {
         const isActive = i === active
         const alt = locale === 'he' ? slide.alt_he : slide.alt_en
+        const customUrl = heroOverrides[i] ? `${API_BASE}${heroOverrides[i]}` : null
         return (
-          <picture
+          <div
             key={i}
             className={`hero__slide${isActive ? ' is-active' : ''}`}
             style={{ transformOrigin: slide.origin }}
             aria-hidden={!isActive}
           >
-            <source srcSet={slide.avif} type="image/avif" />
-            <source srcSet={slide.webp} type="image/webp" />
-            <img
-              src={slide.jpg}
-              // First slide is the LCP candidate — fetch eager, others lazy.
-              alt={i === 0 ? alt : ''}
-              loading={i === 0 ? 'eager' : 'lazy'}
-              fetchpriority={i === 0 ? 'high' : 'auto'}
-              decoding="async"
-              style={{ objectPosition: slide.position }}
-            />
-          </picture>
+            {customUrl ? (
+              <img
+                src={customUrl}
+                alt={i === 0 ? alt : ''}
+                loading={i === 0 ? 'eager' : 'lazy'}
+                fetchpriority={i === 0 ? 'high' : 'auto'}
+                decoding="async"
+                style={{ objectPosition: slide.position }}
+              />
+            ) : (
+              <picture>
+                <source srcSet={slide.avif} type="image/avif" />
+                <source srcSet={slide.webp} type="image/webp" />
+                <img
+                  src={slide.jpg}
+                  alt={i === 0 ? alt : ''}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                  fetchpriority={i === 0 ? 'high' : 'auto'}
+                  decoding="async"
+                  style={{ objectPosition: slide.position }}
+                />
+              </picture>
+            )}
+          </div>
         )
       })}
     </div>
