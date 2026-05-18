@@ -220,8 +220,11 @@ function ThumbnailCard({ imgSrc, title, subtitle, badge, selected, onSelect }) {
         background: 'var(--surface)',
       }}
     >
-      <div style={{ height: 130, background: 'var(--surface-ink)', position: 'relative', overflow: 'hidden' }}>
-        <img src={imgSrc} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      <div
+        style={{ height: 130, background: 'var(--surface-ink)', position: 'relative', overflow: 'hidden' }}
+        onContextMenu={e => e.preventDefault()}
+      >
+        <img src={imgSrc} alt={title} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
         {badge && (
           <div style={{
             position: 'absolute', top: 7, left: 7,
@@ -440,13 +443,13 @@ export default function Results({
       }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onContextMenu={e => e.preventDefault()}
     >
       <img
         src={viewerSrc}
         alt={isSource ? 'Original' : active?.fabric.name}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', WebkitTouchCallout: 'none', userSelect: 'none' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', WebkitTouchCallout: 'none', userSelect: 'none', pointerEvents: 'none' }}
         draggable={false}
-        onContextMenu={e => e.preventDefault()}
       />
 
       {/* Label overlay */}
@@ -532,13 +535,13 @@ export default function Results({
           <div style={{ position: 'relative', background: 'var(--surface-ink)', overflow: 'hidden' }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            onContextMenu={e => e.preventDefault()}
           >
             <img
               src={viewerSrc}
               alt={isSource ? 'Original' : active?.fabric.name}
-              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', WebkitTouchCallout: 'none', userSelect: 'none' }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', WebkitTouchCallout: 'none', userSelect: 'none', pointerEvents: 'none' }}
               draggable={false}
-              onContextMenu={e => e.preventDefault()}
             />
 
             {/* Label overlay */}

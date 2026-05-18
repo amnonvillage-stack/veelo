@@ -145,6 +145,17 @@ body {
   padding-right:  env(safe-area-inset-right);
 }
 
+/* Suppress iOS Safari long-press "Save Image / Copy" callout on all images
+   inside the app. -webkit-touch-callout is the Safari-specific property that
+   controls the callout sheet; user-select stops text/image drag-selection.
+   Note: pointer-events is intentionally NOT set here so tap interactions
+   (thumbnail selection, swipe-compare etc.) continue to work normally. */
+.veelo-app-root img {
+  -webkit-touch-callout: none;
+  -webkit-user-select:   none;
+  user-select:           none;
+}
+
 button {
   font-family: var(--font-body);
   cursor: pointer;
